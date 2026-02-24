@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ecb613;
+  --color-background-light: #f8f8f6;
+  --color-background-dark: #0a0a0a;
+  --color-obsidian: #0a0a0a;
+  --color-charcoal: #1a1a1a;
+  --color-studio-gray: #2a2a2a;
+  --font-display: var(--font-spline-sans), sans-serif;
+}
+
+body {
+  background-color: #0a0a0a;
+  color: #f8f8f6;
+  overflow-x: hidden;
+}
+
+.film-grain {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.03;
+  background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBaOm--_CxYBgZLpADRS3Rt0ORHZ0xVURRIibITXMpJWKMOUEOqBbcIg6I6mhtLQbvAMKtcnLjqqXw_zgwUnGSH-S9SdI6L7PJADLwU2Itu-cM_D9Tfa-y8gARc7jPiSlN_95qOInRyPQcIQUIiK694c7u0W3quvKd3wdLOEkRQgC0Ppid0fCH0iXz96CVfwD1cq6stspT0Q-3TGNiV20WjMQYsYd-VZJtjeg4a0tgR0ebaowQSQQvmU86zTbzEsaj64iFV5zT1AaU');
+}
+
+.glass-panel {
+  background: rgba(26, 26, 26, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(236, 182, 19, 0.1);
+}
+
+.cinematic-gradient {
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 1) 100%);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px rgba(236, 182, 19, 0.2);
+}
+
+.waveform-bar {
+  width: 3px;
+  background: #ecb613;
+  border-radius: 2px;
+  margin: 0 1px;
+}
