@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     // Mock authentication - in a real app, verify against a database
-    if (password === 'password') {
+    if (email === 'test@vivid.live' && password === 'password123') {
       const response = NextResponse.json({ success: true });
       response.cookies.set('auth_token', 'mock_token_123', {
         httpOnly: true,
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: 'Invalid credentials. Use password "password" to test.' },
+      { error: 'Invalid credentials. Use test@vivid.live / password123 to test.' },
       { status: 401 }
     );
   } catch (error) {
