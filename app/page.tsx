@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import {
   Film,
   Play,
@@ -64,9 +65,12 @@ export default function Page() {
             </a>
           </div>
           <div className="flex items-center gap-4">
-            <button className="bg-primary text-obsidian px-6 py-2 rounded-lg text-sm font-bold hover:brightness-110 transition-all uppercase tracking-wider">
+            <Link
+              href="/login"
+              className="bg-primary text-obsidian px-6 py-2 rounded-lg text-sm font-bold hover:brightness-110 transition-all uppercase tracking-wider"
+            >
               Request Access
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
@@ -102,10 +106,10 @@ export default function Page() {
             film production evolution for the future of storytelling.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <button className="w-full sm:w-auto bg-primary text-obsidian px-10 py-5 rounded-xl text-lg font-black uppercase tracking-widest gold-glow hover:scale-105 transition-transform">
+            <button suppressHydrationWarning className="w-full sm:w-auto bg-primary text-obsidian px-10 py-5 rounded-xl text-lg font-black uppercase tracking-widest gold-glow hover:scale-105 transition-transform">
               Start Directing
             </button>
-            <button className="w-full sm:w-auto glass-panel text-white border-white/10 px-10 py-5 rounded-xl text-lg font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
+            <button suppressHydrationWarning className="w-full sm:w-auto glass-panel text-white border-white/10 px-10 py-5 rounded-xl text-lg font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
               Watch Showreel
             </button>
           </div>
@@ -138,7 +142,7 @@ export default function Page() {
                 className="object-cover opacity-60"
                 referrerPolicy="no-referrer"
               />
-              <button className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-24 bg-primary text-obsidian rounded-full flex items-center justify-center gold-glow hover:scale-110 transition-transform">
+              <button suppressHydrationWarning className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-24 bg-primary text-obsidian rounded-full flex items-center justify-center gold-glow hover:scale-110 transition-transform">
                 <Play className="size-10 fill-current ml-1" />
               </button>
               <div className="absolute bottom-6 left-6 right-6 h-16 glass-panel rounded-xl flex items-center px-6 gap-6 border-white/10">
@@ -241,10 +245,10 @@ export default function Page() {
                   </h4>
                 </div>
                 <div className="flex gap-2">
-                  <button className="size-10 rounded-full glass-panel flex items-center justify-center hover:bg-primary hover:text-obsidian transition-colors">
+                  <button suppressHydrationWarning className="size-10 rounded-full glass-panel flex items-center justify-center hover:bg-primary hover:text-obsidian transition-colors">
                     <RotateCcw className="size-4" />
                   </button>
-                  <button className="size-10 rounded-full glass-panel flex items-center justify-center hover:bg-primary hover:text-obsidian transition-colors">
+                  <button suppressHydrationWarning className="size-10 rounded-full glass-panel flex items-center justify-center hover:bg-primary hover:text-obsidian transition-colors">
                     <MonitorPlay className="size-4" />
                   </button>
                 </div>
@@ -284,7 +288,7 @@ export default function Page() {
                         <div className="waveform-bar h-1"></div>
                       </div>
                     </div>
-                    <button className="size-8 bg-primary rounded-full flex items-center justify-center text-obsidian">
+                    <button suppressHydrationWarning className="size-8 bg-primary rounded-full flex items-center justify-center text-obsidian">
                       <Mic className="size-4" />
                     </button>
                   </div>
@@ -462,10 +466,10 @@ export default function Page() {
                     </span>
                   </div>
                   <div className="flex gap-4 shrink-0">
-                    <button className="px-4 py-2 bg-white/5 border border-white/10 rounded text-[10px] font-bold uppercase">
+                    <button suppressHydrationWarning className="px-4 py-2 bg-white/5 border border-white/10 rounded text-[10px] font-bold uppercase">
                       Interrupt
                     </button>
-                    <button className="px-4 py-2 bg-primary text-obsidian rounded text-[10px] font-bold uppercase">
+                    <button suppressHydrationWarning className="px-4 py-2 bg-primary text-obsidian rounded text-[10px] font-bold uppercase">
                       Commit
                     </button>
                   </div>
