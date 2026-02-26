@@ -80,7 +80,7 @@ export default function Page() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-obsidian/40 to-obsidian z-10"></div>
           <Image
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh9b5Dwvg5cJ_Y7Mnt1bkZvzcvU7dnmpWcNJChEcSFCQgfOlaf4fwMSIwbmf6MVaohMfdPYdUNZAEklcewcCKLdOleHtuS80IQIRW84YfO7j0C2GqQeKme1xPNrEkmady64A5YBql3ZuI4LywZi_-qqJTJpIp-uJhBB4XZTHSVRE_3N4Ya8GYjWhXYZP3NipZWdRa6RsjManaxt39IbzbcaotRiVCELwp5IJag1PNwHy-Io1CSGcTcos1q8JEosZ5Pmfb-gNwZAT0"
+            src="https://picsum.photos/1920/1080"
             alt="Cinematic wide shot of a futuristic creator collaborating with a golden holographic AI entity"
             fill
             className="object-cover opacity-40"
@@ -136,7 +136,7 @@ export default function Page() {
           <div className="relative group max-w-6xl mx-auto mb-20">
             <div className="aspect-video rounded-3xl overflow-hidden glass-panel border border-white/10 relative gold-glow">
               <Image
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB26T967347v37o33v27787v787v787v787v787v787v787v787v787v787v787v787"
+                src="https://picsum.photos/1920/1080"
                 alt="Live Showrunner Demo Interface Placeholder"
                 fill
                 className="object-cover opacity-60"
@@ -228,7 +228,7 @@ export default function Page() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-[600px]">
             <div className="md:col-span-8 relative group overflow-hidden rounded-2xl border border-white/5">
               <Image
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSitq3kOpPwowFhPsIqiLPMRJLKF25BijJgNcJj2WD8_cg8TSUxUhDtDPNzO9aPiDYh8sa5JUk58F9F_JPERSkHlRsCCw05JQ_jjABqZGYohkXNHhXH-nAzu8mozRXtwdBZfuOnlYUafWd_OFdT-4zSHYbB7EpiRsa8X3XLTgZwhtLgi59aBKfqMhQcoeGBnUujK2tqTZc1zLCGbjgfSzla9i0V9en_QbfhnvCpPEL05yVZUvi3MCDlgV8IRKJXaeiDTCpFypOUAY"
+                src="https://picsum.photos/1920/1080"
                 alt="High-fidelity cinematic shot of a neon-lit cyberpunk street at night"
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-1000"
@@ -296,7 +296,7 @@ export default function Page() {
               </div>
               <div className="h-1/3 glass-panel rounded-2xl p-6 overflow-hidden relative">
                 <Image
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXnU9bhcxxZCAHczGd9K0o-ix1F7Xkrt-eAJjjN0dkJ7FlUQaTM9uBA2Os7sBW34xubG9NHaQKEzsm4HxjT-Idjw0-MseC7KE0xmBnf11s3jRUJjsMIaEdmnK5JRJxlm7VUSCboMSUCFVvsVCwGYfeUqQplOiN_Ddbb1mDuB3OgnLRFA8WFM4FrKjzoMkEpxbg-wHVgAU6ARAkpubC6epQIWMBEt2e_pcI04EXho5HJFmV86rlSekRQ2k5VLvTYmH4taFU-Kwbl3Y"
+                  src="https://picsum.photos/1920/1080"
                   alt="Abstract fluid golden textures representing cinematic motion"
                   fill
                   className="object-cover opacity-20"
@@ -352,7 +352,7 @@ export default function Page() {
               <div className="space-y-4 pt-12">
                 <div className="rounded-xl overflow-hidden glass-panel border border-white/10 group relative aspect-square">
                   <Image
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMZr4ZNK7DOnM22pe0uBAjJnZzZ4l3BqbzZeF_BQHLbGPrJcRZUUTPnFuDqBxSChsH7Dyi2TZ3wNlT6jIu9itiGznycVzm_W28StyPENbxAWHO-y7aauSOF9D7rTnRe4I3A9T-CjuPQT-wuberHcTpcw6wCOvc7nWuY5XiRp456mBNUxf76gHlrZMP3j_38TeyqEn4XeOp21MYnr1-0OERC3V4bqsPkHey9u6pVFqO0J7iroOza6PrkRetmp7-3Ek1O6qktIYR06U"
+                    src="https://picsum.photos/1920/1080"
                     alt="Technical schematic of a futuristic respirator device"
                     fill
                     className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
@@ -367,7 +367,7 @@ export default function Page() {
                 </div>
                 <div className="rounded-xl overflow-hidden glass-panel border border-white/10 group relative aspect-video">
                   <Image
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXEYwf5YQp29tlwdFRfHywLEByzeAMM3YBdcsWlquDhoXszzroR7yl7hJWsJRNKOimu06YH6ZA0N1umjjWRXtjemiLFoR-xdrI_bZ9X_hgoVnEcDK-URi2niTN9O9dG3hk7Bfcb_PqTnf5-QZeTKeuPRPrQCwpsqloM5ZqKoJZ8kROZOE0JH-ycr6ozaTkuPBNyihl6BQ45-j299veW2NaDlR7Xqj2glVRwM-tjfnEoOc7K5r1N0w9i6OdFe3SgD4XU8V-wBWkUdI"
+                    src="https://picsum.photos/1920/1080"
                     alt="Cinematic lighting study in a dark industrial space"
                     fill
                     className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
@@ -384,7 +384,7 @@ export default function Page() {
               <div className="space-y-4">
                 <div className="rounded-xl overflow-hidden glass-panel border border-white/10 group relative aspect-[3/4]">
                   <Image
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuS5ogxD8ao6bhWNxPhX6fEPc_5UGyqQuYbstsMd12tTkg-tbJLNl5C62qrrJKxSBEHQBJ2q2L-6cp4GV6b4DrxgbmkLu-9Dpxy1YTzSuOb-SV_-uIZ0x1SDHsiPkFhBkUHuA8O11dDW5_Nfi2pl3fe-jLI9Utt5Hs2pM5XiEJHc_5TwLXVUHnxM0rl_31oaISEgxkuG8IdDplORKD04DQSaby3SUaTrAIkS7nQji8Hcz6eSheXk0CxbIMSdQENKwy9I8lTqIX2xs"
+                    src="https://picsum.photos/1920/1080"
                     alt="Abstract character design profile with holographic overlays"
                     fill
                     className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
@@ -605,13 +605,17 @@ export default function Page() {
           </p>
           <div className="flex flex-col md:flex-row gap-4 justify-center max-w-lg mx-auto">
             <input
+              suppressHydrationWarning
               className="flex-1 bg-charcoal border border-white/10 rounded-xl px-6 py-4 focus:ring-primary focus:border-primary outline-none text-white"
               placeholder="Your production email"
               type="email"
             />
-            <button className="bg-primary text-obsidian px-8 py-4 rounded-xl font-black uppercase tracking-widest gold-glow hover:scale-105 transition-transform">
+            <Link
+              href="/signup"
+              className="bg-primary text-obsidian px-8 py-4 rounded-xl font-black uppercase tracking-widest gold-glow hover:scale-105 transition-transform flex items-center justify-center"
+            >
               Join Waitlist
-            </button>
+            </Link>
           </div>
           <p className="mt-8 text-xs text-slate-500 uppercase tracking-[0.2em]">
             Closed Beta • Exclusive Access Only

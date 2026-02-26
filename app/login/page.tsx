@@ -12,6 +12,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -28,16 +33,29 @@ export default function LoginPage() {
     return () => window.removeEventListener('message', handleMessage);
   }, [router]);
 
+  if (!isMounted) {
+    return <div className="min-h-screen bg-[#181611]" />;
+  }
+
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
+      let body;
+      try {
+        body = JSON.stringify({ email, password });
+      } catch (stringifyError) {
+        setError('Invalid input data');
+        setIsLoading(false);
+        return;
+      }
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body,
       });
 
       if (res.ok) {
@@ -46,8 +64,10 @@ export default function LoginPage() {
         const data = await res.json();
         setError(data.error || 'Login failed');
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      // Avoid logging the error object directly as it might contain circular references (e.g. DOM events)
+      // which can cause "Converting circular structure to JSON" errors in some environments.
+      setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +92,9 @@ export default function LoginPage() {
         alert('Please allow popups for this site to connect your account.');
       }
     } catch (err: any) {
-      console.error('OAuth error:', err);
+      // Avoid logging the error object directly as it might contain circular references (e.g. DOM events)
+      // which can cause "Converting circular structure to JSON" errors in some environments.
+      console.error('OAuth error:', err instanceof Error ? err.message : 'Unknown error');
       setError(err.message || 'Failed to initialize Google login.');
     }
   };
@@ -205,7 +227,7 @@ export default function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-slate-400">
               New to the cinematic world? 
-              <Link className="text-primary font-bold hover:underline ml-1" href="#">Create an account</Link>
+              <Link className="text-primary font-bold hover:underline ml-1" href="/signup">Create an account</Link>
             </p>
           </div>
         </div>
