@@ -1,5 +1,5 @@
 {
   "name": "Vivid.live",
   "description": "Your Multimodal Showrunner Agent",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }

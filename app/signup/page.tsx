@@ -1,21 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Shapes, Lock, ChevronDown, Zap, Film } from 'lucide-react';
+import * as Lucide from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  // const [role, setRole] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
+  const [fullName, setFullName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  // const [role, setRole] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [isMounted, setIsMounted] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
@@ -41,7 +41,7 @@ export default function SignupPage() {
       });
 
       if (res.ok) {
-        router.push('/dashboard');
+        router.push('/setup');
       } else {
         const data = await res.json();
         setError(data.error || 'Signup failed');
@@ -75,7 +75,7 @@ export default function SignupPage() {
         {/* Branding Overlay */}
         <div className="absolute top-10 left-10 flex items-center gap-3" suppressHydrationWarning>
           <div className="bg-primary p-1.5 rounded-lg shadow-[0_0_20px_rgba(236,182,19,0.4)]" suppressHydrationWarning>
-            <Film className="size-6 text-[#12110d] fill-current" suppressHydrationWarning />
+            <Lucide.Film className="size-6 text-[#12110d] fill-current" suppressHydrationWarning />
           </div>
           <Link href="/" suppressHydrationWarning>
             <h2 className="text-white text-2xl font-black tracking-tighter hover:text-primary transition-colors cursor-pointer" suppressHydrationWarning>Vivid.live</h2>
@@ -103,7 +103,7 @@ export default function SignupPage() {
         {/* Mobile Logo */}
         <div className="md:hidden absolute top-8 left-8 flex items-center gap-3" suppressHydrationWarning>
           <div className="bg-primary p-1.5 rounded-lg" suppressHydrationWarning>
-            <Film className="size-5 text-[#12110d] fill-current" suppressHydrationWarning />
+            <Lucide.Film className="size-5 text-[#12110d] fill-current" suppressHydrationWarning />
           </div>
           <Link href="/" suppressHydrationWarning>
             <span className="text-white font-bold hover:text-primary transition-colors cursor-pointer" suppressHydrationWarning>Vivid.live</span>
@@ -126,7 +126,7 @@ export default function SignupPage() {
             {/* Full Name */}
             <div className="space-y-2" suppressHydrationWarning>
               <label className="text-slate-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2" suppressHydrationWarning>
-                <User className="text-primary size-4" suppressHydrationWarning />
+                <Lucide.User className="text-primary size-4" suppressHydrationWarning />
                 Full Name
               </label>
               <input 
@@ -143,7 +143,7 @@ export default function SignupPage() {
             {/* Production Email */}
             <div className="space-y-2" suppressHydrationWarning>
               <label className="text-slate-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2" suppressHydrationWarning>
-                <Mail className="text-primary size-4" suppressHydrationWarning />
+                <Lucide.Mail className="text-primary size-4" suppressHydrationWarning />
                 Production Email
               </label>
               <input 
@@ -160,7 +160,7 @@ export default function SignupPage() {
             {/* Creative Role - Commented out as per request
             <div className="space-y-2" suppressHydrationWarning>
               <label className="text-slate-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2" suppressHydrationWarning>
-                <Shapes className="text-primary size-4" suppressHydrationWarning />
+                <div className="text-primary size-4" suppressHydrationWarning />
                 Creative Role
               </label>
               <div className="relative" suppressHydrationWarning>
@@ -177,7 +177,7 @@ export default function SignupPage() {
                   <option value="Asset Curator" suppressHydrationWarning>Asset Curator</option>
                   <option value="Executive Producer" suppressHydrationWarning>Executive Producer</option>
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none size-5" suppressHydrationWarning />
+                <Lucide.ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none size-5" suppressHydrationWarning />
               </div>
             </div>
             */}
@@ -185,7 +185,7 @@ export default function SignupPage() {
             {/* Password */}
             <div className="space-y-2" suppressHydrationWarning>
               <label className="text-slate-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2" suppressHydrationWarning>
-                <Lock className="text-primary size-4" suppressHydrationWarning />
+                <Lucide.Lock className="text-primary size-4" suppressHydrationWarning />
                 Create Password
               </label>
               <input 
@@ -207,7 +207,7 @@ export default function SignupPage() {
               disabled={isLoading}
             >
               <span suppressHydrationWarning>{isLoading ? 'Initializing...' : 'Initialize Suite'}</span>
-              {!isLoading && <Zap className="size-5 transition-transform group-hover:translate-x-1 fill-current" suppressHydrationWarning />}
+              {!isLoading && <Lucide.Zap className="size-5 transition-transform group-hover:translate-x-1 fill-current" suppressHydrationWarning />}
             </button>
           </form>
           
