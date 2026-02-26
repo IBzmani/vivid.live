@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { fullName, email, role, password } = body;
+    const { fullName, email, password } = body;
 
-    if (!email || !password || !fullName || !role) {
+    if (!email || !password || !fullName) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     // For now, we'll just simulate a successful signup
     
     return NextResponse.json(
-      { message: 'User created successfully', user: { fullName, email, role } },
+      { message: 'User created successfully', user: { fullName, email } },
       { status: 201 }
     );
   } catch (error) {

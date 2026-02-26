@@ -9,7 +9,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState('');
+  // const [role, setRole] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,7 +27,7 @@ export default function SignupPage() {
     try {
       let body;
       try {
-        body = JSON.stringify({ fullName, email, role, password });
+        body = JSON.stringify({ fullName, email, password });
       } catch (stringifyError) {
         setError('Invalid input data');
         setIsLoading(false);
@@ -157,7 +157,7 @@ export default function SignupPage() {
               />
             </div>
             
-            {/* Creative Role */}
+            {/* Creative Role - Commented out as per request
             <div className="space-y-2" suppressHydrationWarning>
               <label className="text-slate-200 text-xs font-bold uppercase tracking-widest flex items-center gap-2" suppressHydrationWarning>
                 <Shapes className="text-primary size-4" suppressHydrationWarning />
@@ -180,6 +180,7 @@ export default function SignupPage() {
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none size-5" suppressHydrationWarning />
               </div>
             </div>
+            */}
             
             {/* Password */}
             <div className="space-y-2" suppressHydrationWarning>
