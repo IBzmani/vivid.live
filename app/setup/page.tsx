@@ -4,13 +4,14 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import * as Lucide from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 
 const ARCHETYPES = [
   {
     id: 'mentor',
     name: 'The Mentor',
     icon: Lucide.BrainCircuit,
+    voiceName: 'Kore',
     color: 'text-indigo-400',
     bgColor: 'bg-indigo-500/20',
     borderColor: 'border-indigo-500/30',
@@ -20,6 +21,7 @@ const ARCHETYPES = [
     id: 'visionary',
     name: 'The Visionary',
     icon: Lucide.Lightbulb,
+    voiceName: 'Zephyr',
     color: 'text-emerald-400',
     bgColor: 'bg-emerald-500/20',
     borderColor: 'border-emerald-500/30',
@@ -29,6 +31,7 @@ const ARCHETYPES = [
     id: 'technical',
     name: 'The Technical Lead',
     icon: Lucide.Terminal,
+    voiceName: 'Charon',
     color: 'text-slate-300',
     bgColor: 'bg-slate-500/20',
     borderColor: 'border-slate-500/30',
@@ -45,31 +48,123 @@ export default function SetupPage() {
   const [isMounted, setIsMounted] = React.useState(false);
   const [agentMessage, setAgentMessage] = React.useState('Initializing neural pathways...');
   const [isTyping, setIsTyping] = React.useState(false);
+  const audioContextRef = React.useRef<AudioContext | null>(null);
+  const sourceNodeRef = React.useRef<AudioBufferSourceNode | null>(null);
 
-  React.useEffect(() => {
-    setIsMounted(true);
-    generateAgentIntro('mentor');
+  const playAudio = React.useCallback(async (base64Data: string) => {
+    try {
+      // Initialize AudioContext on first interaction if not already present
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+          sampleRate: 24000,
+        });
+      }
+
+      const audioContext = audioContextRef.current;
+
+      // Stop any currently playing audio
+      if (sourceNodeRef.current) {
+        try {
+          sourceNodeRef.current.stop();
+        } catch (e) {
+          // Ignore errors if already stopped
+        }
+      }
+
+      // Resume context if it was suspended (browser policy)
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      // Decode Base64 to ArrayBuffer
+      const binaryString = window.atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const arrayBuffer = bytes.buffer;
+
+      // Convert Int16 PCM to Float32
+      const int16Array = new Int16Array(arrayBuffer);
+      const float32Array = new Float32Array(int16Array.length);
+      for (let i = 0; i < int16Array.length; i++) {
+        float32Array[i] = int16Array[i] / 32768.0;
+      }
+
+      // Create AudioBuffer and play
+      const audioBuffer = audioContext.createBuffer(1, float32Array.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Array);
+
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+      source.start();
+      sourceNodeRef.current = source;
+
+    } catch (e) {
+      console.error("PCM playback failed:", e);
+    }
   }, []);
 
-  const generateAgentIntro = async (archId: string) => {
+  const generateAgentIntro = React.useCallback(async (archId: string) => {
     setIsTyping(true);
     const arch = ARCHETYPES.find(a => a.id === archId);
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+      
+      // 1. Generate Text
+      const textResponse = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
         contents: `You are a creative AI agent with the archetype: ${arch?.name}. ${arch?.description}. 
         Briefly introduce yourself to your new partner (the user) in 2 short sentences. 
         Stay in character.`,
       });
-      setAgentMessage(response.text || "I am ready to build worlds with you.");
+      
+      const introText = textResponse.text || "I am ready to build worlds with you.";
+      setAgentMessage(introText);
+
+      // 2. Generate Audio (TTS)
+      const audioResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: [{ parts: [{ text: introText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: arch?.voiceName || 'Kore' },
+            },
+          },
+        },
+      });
+
+      const base64Audio = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) {
+        await playAudio(base64Audio);
+      }
+
     } catch (error) {
+      console.error("Agent intro generation failed:", error);
       setAgentMessage(`I am your ${arch?.name}. I am ready to assist you in building your cinematic universe.`);
     } finally {
       setIsTyping(false);
     }
-  };
+  }, [playAudio]);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+    generateAgentIntro('mentor');
+    
+    return () => {
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.stop();
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [generateAgentIntro]);
 
   const handleArchetypeChange = (id: string) => {
     setArchetype(id);

@@ -1,22 +1,22 @@
 'use client';
 
-import * as React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import * as Lucide from 'lucide-react';
+import { Film, Sparkles, BrainCircuit, Lightbulb, Terminal, Mic, Zap, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ARCHETYPE_MAP: Record<string, any> = {
-  mentor: { name: 'The Mentor', icon: Lucide.BrainCircuit, color: 'text-indigo-400' },
-  visionary: { name: 'The Visionary', icon: Lucide.Lightbulb, color: 'text-emerald-400' },
-  technical: { name: 'The Technical Lead', icon: Lucide.Terminal, color: 'text-slate-300' }
+  mentor: { name: 'The Mentor', icon: BrainCircuit, color: 'text-indigo-400' },
+  visionary: { name: 'The Visionary', icon: Lightbulb, color: 'text-emerald-400' },
+  technical: { name: 'The Technical Lead', icon: Terminal, color: 'text-slate-300' }
 };
 
 export default function DashboardPage() {
-  const [settings, setSettings] = React.useState<any>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [agentMessage, setAgentMessage] = React.useState('Awaiting your direction...');
+  const [settings, setSettings] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [agentMessage, setAgentMessage] = useState('Awaiting your direction...');
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch('/api/user/agent-settings/get')
       .then(res => res.json())
       .then(data => {
@@ -37,7 +37,7 @@ export default function DashboardPage() {
       {/* Navigation */}
       <div className="absolute top-8 left-8 z-50 flex items-center gap-3">
         <div className="size-8 text-primary flex items-center justify-center">
-          <Lucide.Film className="size-6 fill-current" />
+          <Film className="size-6 fill-current" />
         </div>
         <Link href="/">
           <h1 className="text-white text-2xl font-bold tracking-tight hover:text-primary transition-colors cursor-pointer">Vivid.live</h1>
@@ -62,12 +62,12 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button className="glass-panel p-6 rounded-2xl border border-white/5 hover:border-primary/30 transition-all group text-left">
-              <Lucide.Sparkles className="size-6 text-primary mb-4 group-hover:scale-110 transition-transform" />
+              <Sparkles className="size-6 text-primary mb-4 group-hover:scale-110 transition-transform" />
               <h3 className="font-bold mb-1">Generate Assets</h3>
               <p className="text-xs text-slate-500">Create high-fidelity characters and environments.</p>
             </button>
             <button className="glass-panel p-6 rounded-2xl border border-white/5 hover:border-primary/30 transition-all group text-left">
-              <Lucide.Film className="size-6 text-primary mb-4 group-hover:scale-110 transition-transform" />
+              <Film className="size-6 text-primary mb-4 group-hover:scale-110 transition-transform" />
               <h3 className="font-bold mb-1">Storyboard Flow</h3>
               <p className="text-xs text-slate-500">Sequence your narrative into cinematic beats.</p>
             </button>
@@ -95,7 +95,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex gap-2">
               <div className="size-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
-                <Lucide.Mic className="size-4 text-slate-400" />
+                <Mic className="size-4 text-slate-400" />
               </div>
             </div>
           </div>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
               className="size-32 bg-primary/20 rounded-full blur-3xl absolute"
             />
             <div className="relative">
-              <Lucide.Zap className="size-12 text-primary animate-pulse" />
+              <Zap className="size-12 text-primary animate-pulse" />
               {[1, 2].map(i => (
                 <motion.div 
                   key={i}
@@ -123,7 +123,7 @@ export default function DashboardPage() {
           {/* Chat Feed */}
           <div className="flex-1 bg-black/20 rounded-2xl p-4 border border-white/5 min-h-[120px] flex flex-col">
             <div className="flex items-center gap-2 mb-3">
-              <Lucide.MessageSquare className="size-3 text-primary" />
+              <MessageSquare className="size-3 text-primary" />
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Agent Feed</span>
             </div>
             <p className="text-sm text-slate-300 italic font-light leading-relaxed">
@@ -137,7 +137,7 @@ export default function DashboardPage() {
               placeholder="Direct your agent..."
             />
             <button className="size-12 bg-primary text-obsidian rounded-xl flex items-center justify-center gold-glow hover:scale-105 transition-transform">
-              <Lucide.Zap className="size-5 fill-current" />
+              <Zap className="size-5 fill-current" />
             </button>
           </div>
         </motion.div>

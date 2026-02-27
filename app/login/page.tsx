@@ -1,24 +1,24 @@
 'use client';
 
-import * as React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import * as Lucide from 'lucide-react';
+import { Film, Mail, Lock, EyeOff, Eye } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = React.useState('test@vivid.live');
-  const [password, setPassword] = React.useState('password123');
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isMounted, setIsMounted] = React.useState(false);
+  const [email, setEmail] = useState('test@vivid.live');
+  const [password, setPassword] = useState('password123');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       // Validate origin is from AI Studio preview or localhost
       const origin = event.origin;
@@ -43,14 +43,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      let body;
-      try {
-        body = JSON.stringify({ email, password });
-      } catch (stringifyError) {
-        setError('Invalid input data');
-        setIsLoading(false);
-        return;
-      }
+      const body = JSON.stringify({ email, password });
 
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -65,8 +58,6 @@ export default function LoginPage() {
         setError(data.error || 'Login failed');
       }
     } catch (err: any) {
-      // Avoid logging the error object directly as it might contain circular references (e.g. DOM events)
-      // which can cause "Converting circular structure to JSON" errors in some environments.
       setError(err.message || 'An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -104,7 +95,7 @@ export default function LoginPage() {
       {/* Branding Logo (Fixed Position) */}
       <div className="absolute top-8 left-8 z-50 flex items-center gap-3">
         <div className="size-8 text-primary flex items-center justify-center">
-          <Lucide.Film className="size-6 fill-current" />
+          <Film className="size-6 fill-current" />
         </div>
         <Link href="/">
           <h1 className="text-white text-2xl font-bold tracking-tight hover:text-primary transition-colors cursor-pointer">Vivid.live</h1>
@@ -147,7 +138,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300 ml-1">Production Email</label>
               <div className="relative group">
-                <Lucide.Mail className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-slate-500 group-focus-within:text-primary transition-colors" />
                 <input 
                   suppressHydrationWarning
                   className="w-full bg-[#27241c] border border-slate-700/50 rounded-lg py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" 
@@ -167,7 +158,7 @@ export default function LoginPage() {
                 <Link className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors uppercase tracking-wider" href="#">Forgot Password?</Link>
               </div>
               <div className="relative group">
-                <Lucide.Lock className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-slate-500 group-focus-within:text-primary transition-colors" />
                 <input 
                   suppressHydrationWarning
                   className="w-full bg-[#27241c] border border-slate-700/50 rounded-lg py-4 pl-12 pr-12 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" 
@@ -183,7 +174,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <Lucide.EyeOff className="size-5" /> : <Lucide.Eye className="size-5" />}
+                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
                 </button>
               </div>
             </div>
