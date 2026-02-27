@@ -11,7 +11,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const settings = await getAgentSettings(authToken);
+    const userId = authToken.startsWith('token_') ? authToken.replace('token_', '') : authToken;
+    const settings = await getAgentSettings(userId);
     return NextResponse.json({ settings });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

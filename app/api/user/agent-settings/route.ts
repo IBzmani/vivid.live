@@ -14,9 +14,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // In a real app, we'd decode the token to get the userId.
-    // For this mock, we'll use the token as the userId or a fixed identifier.
-    const userId = authToken; 
+    // Extract userId from token (format: token_ID)
+    const userId = authToken.startsWith('token_') ? authToken.replace('token_', '') : authToken; 
 
     await saveAgentSettings(userId, {
       archetype,

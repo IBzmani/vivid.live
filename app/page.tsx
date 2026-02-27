@@ -1,6 +1,11 @@
+import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import * as Lucide from "lucide-react";
+import { 
+  Film, Play, Pause, Volume2, Maximize, FileText, Sparkles, Mic, 
+  RotateCcw, MonitorPlay, MessageSquare, Fingerprint, Component, 
+  Eye, Sun, Video, Sliders, Wand2, Check 
+} from "lucide-react";
 
 export default function Page() {
   return (
@@ -12,7 +17,7 @@ export default function Page() {
         <div className="max-w-7xl mx-auto flex items-center justify-between glass-panel rounded-full px-8 py-3 border-white/5">
           <div className="flex items-center gap-3">
             <div className="size-8 bg-primary rounded flex items-center justify-center text-obsidian">
-              <Lucide.Film className="size-5" />
+              <Film className="size-5" />
             </div>
             <span className="text-xl font-bold tracking-tighter uppercase">
               Vivid.live
@@ -123,18 +128,18 @@ export default function Page() {
                 referrerPolicy="no-referrer"
               />
               <button suppressHydrationWarning className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-24 bg-primary text-obsidian rounded-full flex items-center justify-center gold-glow hover:scale-110 transition-transform">
-                <Lucide.Play className="size-10 fill-current ml-1" />
+                <Play className="size-10 fill-current ml-1" />
               </button>
               <div className="absolute bottom-6 left-6 right-6 h-16 glass-panel rounded-xl flex items-center px-6 gap-6 border-white/10">
-                <Lucide.Pause className="size-5 text-primary fill-current" />
+                <Pause className="size-5 text-primary fill-current" />
                 <div className="flex-1 h-1 bg-white/10 rounded-full relative">
                   <div className="absolute inset-y-0 left-0 w-1/3 bg-primary rounded-full"></div>
                   <div className="absolute top-1/2 left-1/3 -translate-y-1/2 size-3 bg-white rounded-full shadow-lg"></div>
                 </div>
                 <div className="flex items-center gap-4 text-[10px] font-mono text-slate-400">
                   <span>01:24 / 04:50</span>
-                  <Lucide.Volume2 className="size-4" />
-                  <Lucide.Maximize className="size-4" />
+                  <Volume2 className="size-4" />
+                  <Maximize className="size-4" />
                 </div>
               </div>
             </div>
@@ -142,7 +147,7 @@ export default function Page() {
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Lucide.FileText className="size-5 text-primary" />
+                <FileText className="size-5 text-primary" />
                 <h4 className="font-bold uppercase tracking-wider text-xs">
                   Real-time Script Narration
                 </h4>
@@ -154,7 +159,7 @@ export default function Page() {
             </div>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Lucide.Sparkles className="size-5 text-primary" />
+                <Sparkles className="size-5 text-primary" />
                 <h4 className="font-bold uppercase tracking-wider text-xs">
                   Interleaved Generation
                 </h4>
@@ -166,7 +171,7 @@ export default function Page() {
             </div>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Lucide.Mic className="size-5 text-primary" />
+                <Mic className="size-5 text-primary" />
                 <h4 className="font-bold uppercase tracking-wider text-xs">
                   Agent Interventions
                 </h4>
@@ -198,7 +203,7 @@ export default function Page() {
             </div>
             <div className="flex gap-4">
               <div className="glass-panel p-4 rounded-xl flex items-center gap-3">
-                <Lucide.Mic className="size-5 text-primary" />
+                <Mic className="size-5 text-primary" />
                 <span className="text-xs font-mono text-slate-400">
                   INPUT: VOX_ACTIVE
                 </span>
@@ -226,10 +231,10 @@ export default function Page() {
                 </div>
                 <div className="flex gap-2">
                   <button suppressHydrationWarning className="size-10 rounded-full glass-panel flex items-center justify-center hover:bg-primary hover:text-obsidian transition-colors">
-                    <Lucide.RotateCcw className="size-4" />
+                    <RotateCcw className="size-4" />
                   </button>
                   <button suppressHydrationWarning className="size-10 rounded-full glass-panel flex items-center justify-center hover:bg-primary hover:text-obsidian transition-colors">
-                    <Lucide.MonitorPlay className="size-4" />
+                    <MonitorPlay className="size-4" />
                   </button>
                 </div>
               </div>
@@ -237,7 +242,7 @@ export default function Page() {
             <div className="md:col-span-4 flex flex-col gap-6">
               <div className="flex-1 glass-panel rounded-2xl p-6 border-l-4 border-l-primary flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
-                  <Lucide.MessageSquare className="size-4 text-primary" />
+                  <MessageSquare className="size-4 text-primary" />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     Live Agent Feed
                   </span>
@@ -269,7 +274,7 @@ export default function Page() {
                       </div>
                     </div>
                     <button suppressHydrationWarning className="size-8 bg-primary rounded-full flex items-center justify-center text-obsidian">
-                      <Lucide.Mic className="size-4" />
+                      <Mic className="size-4" />
                     </button>
                   </div>
                 </div>
@@ -312,14 +317,14 @@ export default function Page() {
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-6 glass-panel rounded-xl border-l-2 border-primary">
-                <Lucide.Fingerprint className="size-6 text-primary mb-4" />
+                <Fingerprint className="size-6 text-primary mb-4" />
                 <h4 className="font-bold mb-2">Biometric Locking</h4>
                 <p className="text-xs text-slate-500">
                   Character facial geometry is fixed across all visual nodes.
                 </p>
               </div>
               <div className="p-6 glass-panel rounded-xl border-l-2 border-primary">
-                <Lucide.Component className="size-6 text-primary mb-4" />
+                <Component className="size-6 text-primary mb-4" />
                 <h4 className="font-bold mb-2">Structural Memory</h4>
                 <p className="text-xs text-slate-500">
                   Environmental layouts are cached in 3D latent space.
@@ -413,7 +418,7 @@ export default function Page() {
                 <div className="text-center">
                   <div className="size-24 rounded-full border-2 border-primary/30 flex items-center justify-center mb-4 relative mx-auto">
                     <div className="absolute inset-0 rounded-full border border-primary animate-pulse"></div>
-                    <Lucide.Eye className="size-10 text-primary" />
+                    <Eye className="size-10 text-primary" />
                   </div>
                   <span className="text-xs font-bold uppercase tracking-widest">
                     Ocular Tracking
@@ -421,7 +426,7 @@ export default function Page() {
                 </div>
                 <div className="text-center">
                   <div className="size-24 rounded-full border-2 border-primary/30 flex items-center justify-center mb-4 mx-auto">
-                    <Lucide.Sun className="size-10 text-primary" />
+                    <Sun className="size-10 text-primary" />
                   </div>
                   <span className="text-xs font-bold uppercase tracking-widest">
                     Atmospheric Mood
@@ -429,7 +434,7 @@ export default function Page() {
                 </div>
                 <div className="text-center">
                   <div className="size-24 rounded-full border-2 border-primary/30 flex items-center justify-center mb-4 mx-auto">
-                    <Lucide.Video className="size-10 text-primary" />
+                    <Video className="size-10 text-primary" />
                   </div>
                   <span className="text-xs font-bold uppercase tracking-widest">
                     Gimbal Logic
@@ -488,7 +493,7 @@ export default function Page() {
             <div className="glass-panel rounded-2xl p-8 border-white/10 space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <h4 className="font-bold">Soundscape Mixer</h4>
-                <Lucide.Sliders className="size-5 text-primary" />
+                <Sliders className="size-5 text-primary" />
               </div>
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -521,7 +526,7 @@ export default function Page() {
               </div>
               <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
                 <div className="flex items-center gap-3">
-                  <Lucide.Wand2 className="size-4 text-primary shrink-0" />
+                  <Wand2 className="size-4 text-primary shrink-0" />
                   <p className="text-xs text-slate-300 italic font-light">
                     &quot;Agent: Syncing foley impact to visual frame 128.&quot;
                   </p>
@@ -544,7 +549,7 @@ export default function Page() {
             <ul className="space-y-4">
               <li className="flex items-center gap-4">
                 <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <Lucide.Check className="size-3 text-primary font-bold" />
+                  <Check className="size-3 text-primary font-bold" />
                 </div>
                 <span className="text-slate-300 font-medium">
                   Temporal Foley Syncing
@@ -552,7 +557,7 @@ export default function Page() {
               </li>
               <li className="flex items-center gap-4">
                 <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <Lucide.Check className="size-3 text-primary font-bold" />
+                  <Check className="size-3 text-primary font-bold" />
                 </div>
                 <span className="text-slate-300 font-medium">
                   Emotionally Adaptive Scores
@@ -560,7 +565,7 @@ export default function Page() {
               </li>
               <li className="flex items-center gap-4">
                 <div className="size-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <Lucide.Check className="size-3 text-primary font-bold" />
+                  <Check className="size-3 text-primary font-bold" />
                 </div>
                 <span className="text-slate-300 font-medium">
                   Spatial Audio Mastering
@@ -608,7 +613,7 @@ export default function Page() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3 grayscale">
             <div className="size-6 bg-white/20 rounded flex items-center justify-center text-white">
-              <Lucide.Film className="size-3" />
+              <Film className="size-3" />
             </div>
             <span className="text-sm font-bold tracking-tighter uppercase opacity-50">
               Vivid.live

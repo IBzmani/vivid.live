@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import { readDb } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -11,23 +13,35 @@ export async function POST(request: Request) {
       );
     }
 
-    // Mock authentication - in a real app, verify against a database
-    if (email === 'test@vivid.live' && password === 'password123') {
-      const response = NextResponse.json({ success: true });
-      response.cookies.set('auth_token', 'mock_token_123', {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-      });
-      return response;
+    const db = await readDb();
+    const user = db.users.find((u: any) => u.email === email);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json(
-      { error: 'Invalid credentials. Use test@vivid.live / password123 to test.' },
-      { status: 401 }
-    );
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    const response = NextResponse.json({ success: true, user: { fullName: user.fullName, email: user.email } });
+    response.cookies.set('auth_token', `token_${user.id}`, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+    });
+    return response;
   } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

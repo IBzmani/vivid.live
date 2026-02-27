@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import Link from 'next/link';
 import { Film, Sparkles, BrainCircuit, Lightbulb, Terminal, Mic, Zap, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,11 +12,11 @@ const ARCHETYPE_MAP: Record<string, any> = {
 };
 
 export default function DashboardPage() {
-  const [settings, setSettings] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [agentMessage, setAgentMessage] = useState('Awaiting your direction...');
+  const [settings, setSettings] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [agentMessage, setAgentMessage] = React.useState('Awaiting your direction...');
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetch('/api/user/agent-settings/get')
       .then(res => res.json())
       .then(data => {

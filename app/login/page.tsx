@@ -1,24 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Film, Mail, Lock, EyeOff, Eye } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('test@vivid.live');
-  const [password, setPassword] = useState('password123');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       // Validate origin is from AI Studio preview or localhost
       const origin = event.origin;

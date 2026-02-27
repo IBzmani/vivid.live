@@ -1,20 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Film, User, Mail, Lock, Zap, ChevronDown } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
+  const [fullName, setFullName] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [isMounted, setIsMounted] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setIsMounted(true);
   }, []);
 

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import * as Lucide from 'lucide-react';
+import { BrainCircuit, Lightbulb, Terminal, CheckCircle2, Mic, Volume2, AudioLines, Zap, Save, MessageSquare, Sparkles, Film, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI, Modality } from "@google/genai";
 
@@ -10,7 +10,7 @@ const ARCHETYPES = [
   {
     id: 'mentor',
     name: 'The Mentor',
-    icon: Lucide.BrainCircuit,
+    icon: BrainCircuit,
     voiceName: 'Kore',
     color: 'text-indigo-400',
     bgColor: 'bg-indigo-500/20',
@@ -20,7 +20,7 @@ const ARCHETYPES = [
   {
     id: 'visionary',
     name: 'The Visionary',
-    icon: Lucide.Lightbulb,
+    icon: Lightbulb,
     voiceName: 'Zephyr',
     color: 'text-emerald-400',
     bgColor: 'bg-emerald-500/20',
@@ -30,7 +30,7 @@ const ARCHETYPES = [
   {
     id: 'technical',
     name: 'The Technical Lead',
-    icon: Lucide.Terminal,
+    icon: Terminal,
     voiceName: 'Charon',
     color: 'text-slate-300',
     bgColor: 'bg-slate-500/20',
@@ -207,7 +207,7 @@ export default function SetupPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 opacity-80">
             <div className="size-6 bg-white/10 rounded flex items-center justify-center text-white border border-white/5">
-              <Lucide.Film className="size-4" />
+              <Film className="size-4" />
             </div>
             <span className="text-sm font-bold tracking-tighter uppercase text-slate-400">
               Vivid.live <span className="text-primary mx-2">{"//"}</span> Setup
@@ -265,7 +265,7 @@ export default function SetupPage() {
                     </div>
                     <span className="font-bold text-sm text-white">{arch.name}</span>
                   </div>
-                  {archetype === arch.id && <Lucide.CheckCircle2 className="size-5 text-primary" />}
+                  {archetype === arch.id && <CheckCircle2 className="size-5 text-primary" />}
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">{arch.description}</p>
               </button>
@@ -289,7 +289,7 @@ export default function SetupPage() {
                   transition={{ repeat: Infinity, duration: 0.5 }}
                   className="size-20 bg-primary rounded-full shadow-[0_0_40px_rgba(236,182,19,0.5)] z-10 flex items-center justify-center"
                 >
-                  <Lucide.Zap className="size-8 text-obsidian fill-current" />
+                  <Zap className="size-8 text-obsidian fill-current" />
                 </motion.div>
                 
                 {/* Ripple Rings */}
@@ -368,27 +368,27 @@ export default function SetupPage() {
               <div className="glass-panel rounded-xl overflow-hidden divide-y divide-white/5 border border-white/5">
                 <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group">
                   <div className="flex items-center gap-3">
-                    <Lucide.Mic className="size-4 text-slate-400 group-hover:text-primary" />
+                    <Mic className="size-4 text-slate-400 group-hover:text-primary" />
                     <div>
                       <div className="text-xs font-bold text-slate-200">Microphone Input</div>
                       <div className="text-[9px] text-slate-500">Default - System Mic</div>
                     </div>
                   </div>
-                  <Lucide.ChevronDown className="size-4 text-slate-600" />
+                  <ChevronDown className="size-4 text-slate-600" />
                 </div>
                 <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer group">
                   <div className="flex items-center gap-3">
-                    <Lucide.Volume2 className="size-4 text-slate-400 group-hover:text-primary" />
+                    <Volume2 className="size-4 text-slate-400 group-hover:text-primary" />
                     <div>
                       <div className="text-xs font-bold text-slate-200">Output Device</div>
                       <div className="text-[9px] text-slate-500">System Default</div>
                     </div>
                   </div>
-                  <Lucide.ChevronDown className="size-4 text-slate-600" />
+                  <ChevronDown className="size-4 text-slate-600" />
                 </div>
                 <div className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Lucide.AudioLines className="size-4 text-slate-400" />
+                    <AudioLines className="size-4 text-slate-400" />
                     <div className="text-xs font-bold text-slate-200">Noise Cancellation</div>
                   </div>
                   <button 
@@ -413,7 +413,7 @@ export default function SetupPage() {
                 'Synchronizing...'
               ) : (
                 <>
-                  <Lucide.Save className="size-5" />
+                  <Save className="size-5" />
                   Synchronize Agent
                 </>
               )}
