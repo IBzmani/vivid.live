@@ -123,7 +123,7 @@ export default function DashboardPage() {
 
       <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-6 py-24 h-full overflow-hidden flex flex-col md:flex-row gap-8">
         {/* Left Column: Projects */}
-        <div className="flex-1 flex flex-col gap-8 h-full overflow-y-auto pr-2 pb-20 scrollbar-hide">
+        <div className="flex-1 flex flex-col gap-8 h-full overflow-y-auto pr-2 pb-20">
           
           {/* Active Production */}
           {activeProject && (
@@ -231,7 +231,7 @@ export default function DashboardPage() {
               <span className="relative inline-flex rounded-full size-2 bg-primary"></span>
             </span>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <div className="relative pl-4 border-l border-white/10 pb-2">
               <div className="absolute -left-[5px] top-0 size-2.5 rounded-full bg-primary border-2 border-obsidian"></div>
               <div className="space-y-1">
