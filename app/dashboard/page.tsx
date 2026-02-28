@@ -135,33 +135,35 @@ export default function DashboardPage() {
                 </h2>
                 <span className="text-[10px] text-slate-500 font-mono">ID: {activeProject.id.toUpperCase()}</span>
               </div>
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative w-full aspect-[21/9] rounded-xl overflow-hidden group border border-white/10 shadow-2xl"
-              >
-                <div 
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-                  style={{ backgroundImage: `url('${activeProject.thumbnail}')` }}
-                ></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 w-full p-8 flex flex-col md:flex-row justify-between items-end gap-6">
-                  <div className="space-y-2 max-w-2xl">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-primary/20 text-primary border border-primary/30 rounded-full backdrop-blur-sm">In Progress</span>
-                      <span className="text-[10px] font-mono text-slate-400">Last edited {new Date(activeProject.lastEdited).toLocaleDateString()}</span>
+              <Link href={`/projects/${activeProject.id}`}>
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="relative w-full aspect-[21/9] rounded-xl overflow-hidden group border border-white/10 shadow-2xl cursor-pointer"
+                >
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                    style={{ backgroundImage: `url('${activeProject.thumbnail}')` }}
+                  ></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 w-full p-8 flex flex-col md:flex-row justify-between items-end gap-6">
+                    <div className="space-y-2 max-w-2xl">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 bg-primary/20 text-primary border border-primary/30 rounded-full backdrop-blur-sm">In Progress</span>
+                        <span className="text-[10px] font-mono text-slate-400">Last edited {new Date(activeProject.lastEdited).toLocaleDateString()}</span>
+                      </div>
+                      <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-none drop-shadow-lg group-hover:text-primary transition-colors">{activeProject.name}</h1>
+                      <p className="text-sm text-slate-300 font-light max-w-lg leading-relaxed drop-shadow-md line-clamp-2">
+                        {activeProject.description || "No description provided. Start directing to build your cinematic world."}
+                      </p>
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-none drop-shadow-lg">{activeProject.name}</h1>
-                    <p className="text-sm text-slate-300 font-light max-w-lg leading-relaxed drop-shadow-md line-clamp-2">
-                      {activeProject.description || "No description provided. Start directing to build your cinematic world."}
-                    </p>
+                    <div className="bg-primary text-obsidian px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(236,182,19,0.4)] group-hover:bg-white group-hover:scale-105 transition-all flex items-center gap-2 whitespace-nowrap">
+                      <Zap className="size-4 fill-current" />
+                      Resume Directing
+                    </div>
                   </div>
-                  <button className="bg-primary text-obsidian px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(236,182,19,0.4)] hover:bg-white hover:scale-105 transition-all flex items-center gap-2 whitespace-nowrap">
-                    <Zap className="size-4 fill-current" />
-                    Resume Directing
-                  </button>
-                </div>
-              </motion.div>
+                </motion.div>
+              </Link>
             </section>
           )}
 
@@ -187,36 +189,37 @@ export default function DashboardPage() {
 
               {/* Project Cards */}
               {projects.map((project, idx) => (
-                <motion.div 
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="glass-panel rounded-xl overflow-hidden group transition-all duration-300 hover:-translate-y-1 border border-white/5"
-                >
-                  <div className="h-32 bg-slate-800 relative overflow-hidden">
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
-                      style={{ backgroundImage: `url('${project.thumbnail}')` }}
-                    ></div>
-                    <div className="absolute top-3 right-3">
-                      <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-full text-slate-300">
-                        {project.status}
-                      </span>
+                <Link key={project.id} href={`/projects/${project.id}`}>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="glass-panel rounded-xl overflow-hidden group transition-all duration-300 hover:-translate-y-1 border border-white/5 h-full"
+                  >
+                    <div className="h-32 bg-slate-800 relative overflow-hidden">
+                      <div 
+                        className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
+                        style={{ backgroundImage: `url('${project.thumbnail}')` }}
+                      ></div>
+                      <div className="absolute top-3 right-3">
+                        <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 bg-black/60 backdrop-blur-sm border border-white/10 rounded-full text-slate-300">
+                          {project.status}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">{project.name}</h3>
-                      <button className="text-slate-500 hover:text-white"><MessageSquare className="size-4" /></button>
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">{project.name}</h3>
+                        <button className="text-slate-500 hover:text-white" onClick={(e) => { e.preventDefault(); /* Prevent navigation */ }}><MessageSquare className="size-4" /></button>
+                      </div>
+                      <p className="text-xs text-slate-400 mb-4 line-clamp-2 font-light leading-relaxed">{project.description || "No description provided."}</p>
+                      <div className="flex items-center justify-between pt-4 border-t border-white/5 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                        <div className="flex items-center gap-1"><Film className="size-3" /> {project.assetsCount} Assets</div>
+                        <div className="flex items-center gap-1"><Zap className="size-3" /> {new Date(project.lastEdited).toLocaleDateString()}</div>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-400 mb-4 line-clamp-2 font-light leading-relaxed">{project.description || "No description provided."}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-white/5 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
-                      <div className="flex items-center gap-1"><Film className="size-3" /> {project.assetsCount} Assets</div>
-                      <div className="flex items-center gap-1"><Zap className="size-3" /> {new Date(project.lastEdited).toLocaleDateString()}</div>
-                    </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                </Link>
               ))}
             </div>
           </section>
