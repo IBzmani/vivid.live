@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Clapperboard, Pencil, Play, PlusSquare, RotateCw } from 'lucide-react';
 import { Frame } from '../types';
 
@@ -59,7 +60,13 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
               onClick={(e) => handleImageClick(e, frame.id)}
               className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer shadow-2xl ${selectedFrameId === frame.id ? 'border-primary ring-8 ring-primary/5' : 'border-white/5'}`}
             >
-              <img src={frame.image} alt={frame.prompt} className={`absolute inset-0 w-full h-full object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} />
+              <Image 
+                src={frame.image} 
+                alt={frame.prompt} 
+                fill
+                className={`object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} 
+                referrerPolicy="no-referrer"
+              />
               
               {selectedFrameId === frame.id && clickCoord && (
                 <div className="absolute size-6 border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-30" style={{ left: `${clickCoord.x}%`, top: `${clickCoord.y}%` }}>

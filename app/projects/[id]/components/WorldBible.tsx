@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { BookOpen, Sparkles, Upload, Download, Trash2, X, Plus, RotateCw } from 'lucide-react';
 import { VisualManifest } from '../types';
 
@@ -76,10 +77,12 @@ const WorldBible: React.FC<WorldBibleProps> = ({
 
     return (
       <>
-        <img 
+        <Image 
           src={imageUrl} 
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-          alt={alt} 
+          alt={alt}
+          fill
+          className="object-cover transition-transform duration-700 group-hover:scale-110" 
+          referrerPolicy="no-referrer"
         />
         {isLinked && (
           <div className="absolute top-2 left-2 bg-primary text-obsidian text-[7px] font-black uppercase px-1.5 py-0.5 rounded shadow-xl z-20 animate-in zoom-in-50">
