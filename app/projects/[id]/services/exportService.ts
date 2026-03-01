@@ -1,13 +1,215 @@
-import { Frame } from "../types";
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { Frame } from '../types';
 
-export const exportCinemaMovie = async (frames: Frame[], onProgress: (p: number) => void): Promise<string> => {
-  // Simulate a long export process
-  for (let i = 0; i <= 100; i += 5) {
-    onProgress(i);
-    await new Promise(resolve => setTimeout(resolve, 200));
+let loadPromise: Promise<FFmpeg> | null = null;
+
+const FFMPEG_VERSION = '0.12.10';
+const CORE_VERSION = '0.12.6';
+
+// Using unpkg for asset resolution as it's a literal file provider
+const WRAPPER_BASE_URL = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/esm`;
+const CORE_BASE_URL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
+
+/**
+ * Creates a Blob URL for a remote asset.
+ */
+async function getAssetAsBlob(url: string, mimeType: string): Promise<string> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Fetch failed: ${url} (${response.status})`);
+    const blob = await response.blob();
+    return URL.createObjectURL(new Blob([blob], { type: mimeType }));
+  } catch (e) {
+    console.error(`Failed to create blob for ${url}:`, e);
+    // Fallback to library utility
+    return await toBlobURL(url, mimeType);
   }
+}
+
+/**
+ * Deeply rewrites the worker script to satisfy CORS Worker policies.
+ * 1. Fetches worker.js text.
+ * 2. Replaces all relative imports (e.g., ./index.js) with absolute CDN URLs.
+ * 3. Returns a same-origin Blob URL.
+ */
+async function getRewrittenWorkerURL(baseUrl: string): Promise<string> {
+  const url = `${baseUrl}/worker.js`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Worker fetch failed: ${response.status}`);
+    const code = await response.text();
+    
+    // Replace relative imports: from "./index.js" -> from "https://unpkg.com/.../index.js"
+    const rewrittenCode = code.replace(/from\s+['"]\.\/(.*?)['"]/g, (match, p1) => {
+      return `from '${baseUrl}/${p1}'`;
+    });
+    
+    const blob = new Blob([rewrittenCode], { type: 'text/javascript' });
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.warn("Worker rewrite failed, attempting fallback blob...", error);
+    return getAssetAsBlob(url, 'text/javascript');
+  }
+}
+
+async function loadFFmpeg(): Promise<FFmpeg> {
+  if (loadPromise) return loadPromise;
+
+  loadPromise = (async () => {
+    const ff = new FFmpeg();
+    
+    console.log("Stage 1: Creating same-origin Blobs for FFmpeg assets...");
+    
+    // We create Blob URLs for EVERYTHING to ensure no cross-origin construction happens
+    const [coreURL, wasmURL, workerURL] = await Promise.all([
+      getAssetAsBlob(`${CORE_BASE_URL}/ffmpeg-core.js`, 'text/javascript'),
+      getAssetAsBlob(`${CORE_BASE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
+      getRewrittenWorkerURL(WRAPPER_BASE_URL)
+    ]);
+
+    console.log("Stage 2: Initializing FFmpeg with local Blobs...");
+    console.log("Worker URL:", workerURL);
+
+    await ff.load({
+      coreURL,
+      wasmURL,
+      workerURL,
+      // @ts-ignore - Some versions of @ffmpeg/ffmpeg use this key for the worker
+      classWorkerURL: workerURL
+    });
+    
+    console.log("Stage 3: FFmpeg ready.");
+    return ff;
+  })();
+
+  return loadPromise;
+}
+
+/**
+ * Converts image source to Uint8Array.
+ */
+async function getFileBytes(url: string): Promise<Uint8Array> {
+  if (!url) return new Uint8Array();
+  if (url.startsWith('data:')) {
+    const base64 = url.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  return await fetchFile(url);
+}
+
+/**
+ * Calculates audio duration for FFmpeg -t flag.
+ */
+async function getAudioDuration(base64: string): Promise<number> {
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    
+    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AudioContextClass({ sampleRate: 24000 });
+    
+    try {
+      const dataInt16 = new Int16Array(bytes.buffer);
+      const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+      const channelData = buffer.getChannelData(0);
+      for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
+      return buffer.duration;
+    } finally {
+      ctx.close();
+    }
+  } catch (e) {
+    console.error("Duration calc failed:", e);
+    return 5.0; // Fallback duration
+  }
+}
+
+export const exportCinemaMovie = async (
+  frames: Frame[], 
+  onProgress: (progress: number) => void
+) => {
+  const ff = await loadFFmpeg();
   
-  // Return a dummy video URL or just one of the frame images as a "result"
-  // In a real app, this would call a backend to stitch images into a video
-  return frames[0]?.image || "https://picsum.photos/seed/export/1280/720";
+  const progressHandler = ({ progress }: { progress: number }) => {
+    onProgress(Math.round(progress * 100));
+  };
+  ff.on('progress', progressHandler);
+
+  try {
+    const validFrames = frames.filter(f => f.image && f.audioData);
+    if (validFrames.length === 0) throw new Error("No synthesized frames found for export. Ensure you have generated both images and audio for your sequence.");
+
+    // Write frames to FS
+    for (let i = 0; i < validFrames.length; i++) {
+      const frame = validFrames[i];
+      const imgBytes = await getFileBytes(frame.image);
+      await ff.writeFile(`img${i}.png`, imgBytes);
+      
+      const audioBinary = atob(frame.audioData!);
+      const audioBytes = new Uint8Array(audioBinary.length);
+      for (let j = 0; j < audioBinary.length; j++) audioBytes[j] = audioBinary.charCodeAt(j);
+      await ff.writeFile(`aud${i}.raw`, audioBytes);
+    }
+
+    const segmentFiles: string[] = [];
+    
+    // Encode individual segments
+    for (let i = 0; i < validFrames.length; i++) {
+      const duration = await getAudioDuration(validFrames[i].audioData!);
+      const outName = `seg${i}.mp4`;
+      
+      await ff.exec([
+        '-loop', '1',
+        '-t', duration.toFixed(3),
+        '-i', `img${i}.png`,
+        '-f', 's16le',
+        '-ar', '24000',
+        '-ac', '1',
+        '-i', `aud${i}.raw`,
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-pix_fmt', 'yuv420p',
+        '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+        outName
+      ]);
+      segmentFiles.push(outName);
+    }
+
+    // Concatenate segments
+    const concatList = segmentFiles.map(name => `file ${name}`).join('\n');
+    await ff.writeFile('list.txt', concatList);
+
+    await ff.exec([
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', 'list.txt',
+      '-c', 'copy',
+      'output.mp4'
+    ]);
+
+    const data = await ff.readFile('output.mp4');
+    const url = URL.createObjectURL(new Blob([data as any], { type: 'video/mp4' }));
+    
+    // Post-export cleanup
+    try {
+      for (let i = 0; i < validFrames.length; i++) {
+        await ff.deleteFile(`img${i}.png`);
+        await ff.deleteFile(`aud${i}.raw`);
+        await ff.deleteFile(`seg${i}.mp4`);
+      }
+      await ff.deleteFile('list.txt');
+      await ff.deleteFile('output.mp4');
+    } catch (e) {
+      console.warn("FS cleanup issue:", e);
+    }
+
+    return url;
+  } finally {
+    ff.off('progress', progressHandler);
+  }
 };
