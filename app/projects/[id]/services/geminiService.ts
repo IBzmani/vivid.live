@@ -300,12 +300,14 @@ export const chatWithCoCreator = async (
     4. Provide guidance on cinematography, lighting, and pacing.
     5. Be encouraging but critical when necessary to ensure "blockbuster" quality.
     
-    OUTPUT FORMAT:
-    You can respond with normal text. 
-    If you suggest a specific change that can be automated, format it as follows:
-    [UPDATE_SCRIPT]: New script content here...
-    [ADD_CHARACTER]: Name | Description
-    [ADD_ENVIRONMENT]: Name | Description/Mood
+    AUTOMATION COMMANDS:
+    When you want to suggest a concrete change, use these tags at the END of your response. 
+    The user will see these as "Suggestions" they can Approve or Decline.
+    - To update the script: [UPDATE_SCRIPT]: <full new script content>
+    - To add a character: [ADD_CHARACTER]: <Name> | <Visual Description for AI Synthesis>
+    - To add an environment: [ADD_ENVIRONMENT]: <Name> | <Mood/Atmosphere Description for AI Synthesis>
+    
+    IMPORTANT: When suggesting a character, provide a rich visual description so the AI synthesis can create a high-quality asset.
   `;
 
   return withRetry(async () => {

@@ -2,13 +2,21 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, X, Sparkles, User, Bot, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageSquare, Send, X, Sparkles, User, Bot, Loader2, ChevronDown, ChevronUp, Mic, MicOff, Check, Ban } from 'lucide-react';
 import { chatWithCoCreator } from '../services/geminiService';
 import { VisualManifest, Genre } from '../types';
+
+interface Suggestion {
+  type: 'script' | 'character' | 'environment';
+  content: string;
+  metadata?: any;
+  id: string;
+}
 
 interface Message {
   role: 'user' | 'model';
   text: string;
+  suggestions?: Suggestion[];
 }
 
 interface CoCreatorAgentProps {
@@ -31,17 +39,55 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: "Hello! I'm your Co-Creator Agent. I've analyzed your project and I'm ready to help you craft a blockbuster. What's on your mind? We can brainstorm the script, refine characters, or fix plot holes." }
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + (prev ? ' ' : '') + transcript);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      setIsListening(true);
+      recognitionRef.current?.start();
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -60,9 +106,8 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
       const response = await chatWithCoCreator(userMessage, history, { script, manifest, genre });
       
       if (response) {
-        // Process special commands in response
-        processCommands(response);
-        setMessages(prev => [...prev, { role: 'model', text: response }]);
+        const suggestions = processCommands(response);
+        setMessages(prev => [...prev, { role: 'model', text: response, suggestions }]);
       } else {
         setMessages(prev => [...prev, { role: 'model', text: "I'm sorry, I couldn't generate a response. Please try again." }]);
       }
@@ -74,24 +119,65 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
     }
   };
 
-  const processCommands = (text: string) => {
+  const processCommands = (text: string): Suggestion[] => {
+    const suggestions: Suggestion[] = [];
+
     // [UPDATE_SCRIPT]: New script content here...
     const scriptMatch = text.match(/\[UPDATE_SCRIPT\]:\s*([\s\S]*?)(?=\[|$)/);
     if (scriptMatch) {
-      onUpdateScript(scriptMatch[1].trim());
+      suggestions.push({
+        id: `s-script-${Date.now()}`,
+        type: 'script',
+        content: scriptMatch[1].trim()
+      });
     }
 
     // [ADD_CHARACTER]: Name | Description
     const charMatches = text.matchAll(/\[ADD_CHARACTER\]:\s*(.*?)\s*\|\s*(.*?)(?=\[|$)/g);
     for (const match of charMatches) {
-      onAddCharacter(match[1].trim(), match[2].trim());
+      suggestions.push({
+        id: `s-char-${Date.now()}-${Math.random()}`,
+        type: 'character',
+        content: match[2].trim(),
+        metadata: { name: match[1].trim() }
+      });
     }
 
     // [ADD_ENVIRONMENT]: Name | Description/Mood
     const envMatches = text.matchAll(/\[ADD_ENVIRONMENT\]:\s*(.*?)\s*\|\s*(.*?)(?=\[|$)/g);
     for (const match of envMatches) {
-      onAddEnvironment(match[1].trim(), match[2].trim());
+      suggestions.push({
+        id: `s-env-${Date.now()}-${Math.random()}`,
+        type: 'environment',
+        content: match[2].trim(),
+        metadata: { name: match[1].trim() }
+      });
     }
+
+    return suggestions;
+  };
+
+  const approveSuggestion = (suggestion: Suggestion) => {
+    if (suggestion.type === 'script') {
+      onUpdateScript(suggestion.content);
+    } else if (suggestion.type === 'character') {
+      onAddCharacter(suggestion.metadata.name, suggestion.content);
+    } else if (suggestion.type === 'environment') {
+      onAddEnvironment(suggestion.metadata.name, suggestion.content);
+    }
+
+    // Remove suggestion from UI
+    setMessages(prev => prev.map(m => ({
+      ...m,
+      suggestions: m.suggestions?.filter(s => s.id !== suggestion.id)
+    })));
+  };
+
+  const declineSuggestion = (suggestion: Suggestion) => {
+    setMessages(prev => prev.map(m => ({
+      ...m,
+      suggestions: m.suggestions?.filter(s => s.id !== suggestion.id)
+    })));
   };
 
   return (
@@ -144,17 +230,62 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                   className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"
                 >
                   {messages.map((m, i) => (
-                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className={`size-6 rounded-full flex items-center justify-center shrink-0 mt-1 ${m.role === 'user' ? 'bg-indigo-500' : 'bg-primary text-obsidian'}`}>
-                          {m.role === 'user' ? <User className="size-3" /> : <Bot className="size-3" />}
-                        </div>
-                        <div className={`p-3 rounded-2xl text-[11px] leading-relaxed ${m.role === 'user' ? 'bg-indigo-500/20 text-indigo-100 rounded-tr-none' : 'bg-white/5 text-slate-300 rounded-tl-none border border-white/5'}`}>
-                          {m.text.split('\n').map((line, idx) => (
-                            <p key={idx} className={idx > 0 ? 'mt-2' : ''}>{line}</p>
-                          ))}
+                    <div key={i} className="space-y-3">
+                      <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <div className={`size-6 rounded-full flex items-center justify-center shrink-0 mt-1 ${m.role === 'user' ? 'bg-indigo-500' : 'bg-primary text-obsidian'}`}>
+                            {m.role === 'user' ? <User className="size-3" /> : <Bot className="size-3" />}
+                          </div>
+                          <div className={`p-3 rounded-2xl text-[11px] leading-relaxed ${m.role === 'user' ? 'bg-indigo-500/20 text-indigo-100 rounded-tr-none' : 'bg-white/5 text-slate-300 rounded-tl-none border border-white/5'}`}>
+                            {m.text.split('\n').map((line, idx) => (
+                              <p key={idx} className={idx > 0 ? 'mt-2' : ''}>{line}</p>
+                            ))}
+                          </div>
                         </div>
                       </div>
+
+                      {/* Suggestions UI */}
+                      {m.suggestions && m.suggestions.length > 0 && (
+                        <div className="ml-9 space-y-2">
+                          {m.suggestions.map((s) => (
+                            <motion.div 
+                              key={s.id}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className="bg-white/5 border border-primary/20 rounded-xl p-3 flex flex-col gap-2"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-primary">
+                                  Suggestion: {s.type}
+                                </span>
+                                <div className="flex gap-1">
+                                  <button 
+                                    onClick={() => approveSuggestion(s)}
+                                    className="size-6 bg-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center hover:bg-emerald-500/40 transition-colors"
+                                    title="Approve & Create"
+                                  >
+                                    <Check className="size-3" />
+                                  </button>
+                                  <button 
+                                    onClick={() => declineSuggestion(s)}
+                                    className="size-6 bg-rose-500/20 text-rose-400 rounded-lg flex items-center justify-center hover:bg-rose-500/40 transition-colors"
+                                    title="Decline"
+                                  >
+                                    <Ban className="size-3" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="text-[10px] text-slate-400">
+                                {s.type === 'script' ? (
+                                  <p className="italic line-clamp-2">&quot;{s.content}&quot;</p>
+                                ) : (
+                                  <p><span className="text-white font-bold">{s.metadata.name}:</span> {s.content}</p>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {isLoading && (
@@ -185,18 +316,26 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                         }
                       }}
                       placeholder="Ask your co-creator..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-12 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 transition-all resize-none h-20"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-24 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 transition-all resize-none h-20"
                     />
-                    <button
-                      onClick={handleSend}
-                      disabled={!input.trim() || isLoading}
-                      className="absolute right-3 bottom-3 size-8 bg-primary text-obsidian rounded-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
-                    >
-                      <Send className="size-4" />
-                    </button>
+                    <div className="absolute right-3 bottom-3 flex gap-2">
+                      <button
+                        onClick={toggleListening}
+                        className={`size-8 rounded-lg flex items-center justify-center transition-all ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'bg-white/10 text-slate-400 hover:bg-white/20'}`}
+                      >
+                        {isListening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+                      </button>
+                      <button
+                        onClick={handleSend}
+                        disabled={!input.trim() || isLoading}
+                        className="size-8 bg-primary text-obsidian rounded-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                      >
+                        <Send className="size-4" />
+                      </button>
+                    </div>
                   </div>
                   <p className="text-[8px] text-slate-600 mt-2 uppercase tracking-widest font-bold text-center">
-                    Agent can update script and add assets directly
+                    Agent suggestions require your approval to execute
                   </p>
                 </div>
               </>
