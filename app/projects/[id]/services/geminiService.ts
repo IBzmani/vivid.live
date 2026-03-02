@@ -267,3 +267,57 @@ export const generateEmotionalAudio = async (text: string, brief: string, genre:
     }
   });
 };
+
+export const chatWithCoCreator = async (
+  message: string,
+  history: { role: 'user' | 'model', parts: { text: string }[] }[],
+  context: { script: string, manifest: VisualManifest, genre: Genre }
+) => {
+  const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
+  
+  const charList = context.manifest.characters.map(c => `${c.name}: ${c.description}`).join('\n');
+  const envList = context.manifest.environments.map(e => `${e.name}: ${e.mood}`).join('\n');
+
+  const systemInstruction = `
+    You are an elite Hollywood Director and Screenwriter with decades of experience in the ${context.genre} genre. 
+    Your goal is to help the user co-create a masterpiece. 
+    
+    CURRENT PROJECT CONTEXT:
+    Genre: ${context.genre}
+    Characters:
+    ${charList}
+    
+    Environments:
+    ${envList}
+    
+    Current Script:
+    ${context.script}
+    
+    YOUR ROLE:
+    1. Brainstorm plot points, character arcs, and dialogue.
+    2. Identify plot holes and suggest fixes.
+    3. Suggest new characters or environments if they would improve the story.
+    4. Provide guidance on cinematography, lighting, and pacing.
+    5. Be encouraging but critical when necessary to ensure "blockbuster" quality.
+    
+    OUTPUT FORMAT:
+    You can respond with normal text. 
+    If you suggest a specific change that can be automated, format it as follows:
+    [UPDATE_SCRIPT]: New script content here...
+    [ADD_CHARACTER]: Name | Description
+    [ADD_ENVIRONMENT]: Name | Description/Mood
+  `;
+
+  return withRetry(async () => {
+    const chat = ai.chats.create({
+      model: "gemini-3.1-pro-preview",
+      config: {
+        systemInstruction,
+      },
+      history,
+    });
+
+    const response = await chat.sendMessage({ message });
+    return response.text;
+  });
+};

@@ -12,13 +12,15 @@ import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
 import WorldBible from './components/WorldBible';
 import TimelineFooter from './components/TimelineFooter';
+import CoCreatorAgent from './components/CoCreatorAgent';
 
 import { 
   analyzeManuscriptDeep, 
   generateSceneWithBrief, 
   generateNanoBananaImage, 
   generateEmotionalAudio, 
-  generateBibleAsset 
+  generateBibleAsset,
+  chatWithCoCreator
 } from './services/geminiService';
 import { exportCinemaMovie } from './services/exportService';
 
@@ -257,6 +259,15 @@ export default function ProjectPage() {
         sentimentData={scene.sentimentData} 
         currentBrief={selectedFrame?.directorsBrief} 
         shotType={selectedFrame?.shotType} 
+      />
+      
+      <CoCreatorAgent 
+        script={scene.script}
+        manifest={scene.manifest}
+        genre={scene.genre}
+        onUpdateScript={(s) => setScene(prev => ({ ...prev, script: s }))}
+        onAddCharacter={addCharacter}
+        onAddEnvironment={addEnvironment}
       />
       
       <AnimatePresence>
