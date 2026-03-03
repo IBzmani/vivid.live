@@ -40,6 +40,7 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const isListeningRef = useRef(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: "Hello! I'm your Co-Creator Agent. I've analyzed your project and I'm ready to help you craft a blockbuster. What's on your mind? We can brainstorm the script, refine characters, or fix plot holes." }
   ]);
@@ -57,23 +58,38 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
 
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(prev => prev + (prev ? ' ' : '') + transcript);
-        setIsListening(false);
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+          setInput(prev => prev + (prev ? ' ' : '') + finalTranscript);
+        }
       };
 
       recognition.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
+        if (event.error === 'no-speech') return; // Ignore no-speech errors to keep it alive
         setIsListening(false);
+        isListeningRef.current = false;
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        // Restart if we're still supposed to be listening
+        if (isListeningRef.current) {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error("Failed to restart recognition:", e);
+          }
+        }
       };
 
       recognitionRef.current = recognition;
@@ -82,8 +98,11 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
 
   const toggleListening = () => {
     if (isListening) {
+      isListeningRef.current = false;
+      setIsListening(false);
       recognitionRef.current?.stop();
     } else {
+      isListeningRef.current = true;
       setIsListening(true);
       recognitionRef.current?.start();
     }
@@ -255,9 +274,17 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                               className="bg-white/5 border border-primary/20 rounded-xl p-3 flex flex-col gap-2"
                             >
                               <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                                  Suggestion: {s.type}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-primary">
+                                    Suggestion: {s.type}
+                                  </span>
+                                  {(s.type === 'character' || s.type === 'environment') && (
+                                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[7px] font-black uppercase tracking-tighter text-primary animate-pulse">
+                                      <Sparkles className="size-2" />
+                                      AI Synthesis
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="flex gap-1">
                                   <button 
                                     onClick={() => approveSuggestion(s)}

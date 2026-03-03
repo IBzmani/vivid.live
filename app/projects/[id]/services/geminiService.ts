@@ -307,7 +307,7 @@ export const chatWithCoCreator = async (
     - To add a character: [ADD_CHARACTER]: <Name> | <Visual Description for AI Synthesis>
     - To add an environment: [ADD_ENVIRONMENT]: <Name> | <Mood/Atmosphere Description for AI Synthesis>
     
-    IMPORTANT: When suggesting a character, provide a rich visual description so the AI synthesis can create a high-quality asset.
+    IMPORTANT: When suggesting a character or environment, explain to the user that approving the suggestion will trigger AI synthesis to create a high-quality visual asset for their World Bible.
   `;
 
   return withRetry(async () => {
