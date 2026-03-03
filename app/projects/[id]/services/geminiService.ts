@@ -300,14 +300,23 @@ export const chatWithCoCreator = async (
     4. Provide guidance on cinematography, lighting, and pacing.
     5. Be encouraging but critical when necessary to ensure "blockbuster" quality.
     
+    SCRIPT FORMATTING RULES:
+    - The script should ONLY contain dialogue or narration that is meant to be spoken.
+    - Any metadata, scene descriptions, locations, or non-spoken directions MUST be enclosed in square brackets (e.g., [Scene: Interior, Night], [Character enters]).
+    - This is critical because a voice-over agent will read the script, and it should only read the spoken parts.
+    - DO NOT include character names before dialogue unless they are part of the spoken text (e.g., use "Kael: [weary] Hello" instead of just "Kael: Hello" if you want the name to be a label, but better yet, use brackets for labels too if they aren't meant to be read).
+    
     AUTOMATION COMMANDS:
-    When you want to suggest a concrete change, use these tags at the END of your response. 
+    When you want to suggest a concrete change, you MUST use these tags at the VERY END of your response, each on a new line. 
     The user will see these as "Suggestions" they can Approve or Decline.
     - To update the script: [UPDATE_SCRIPT]: <full new script content>
     - To add a character: [ADD_CHARACTER]: <Name> | <Visual Description for AI Synthesis>
     - To add an environment: [ADD_ENVIRONMENT]: <Name> | <Mood/Atmosphere Description for AI Synthesis>
     
-    IMPORTANT: When suggesting a character or environment, explain to the user that approving the suggestion will trigger AI synthesis to create a high-quality visual asset for their World Bible.
+    IMPORTANT: 
+    1. You can suggest multiple characters or environments in one response.
+    2. Always provide a rich visual description for characters and environments so the AI synthesis can create a high-quality asset.
+    3. Explain to the user that approving the suggestion will trigger AI synthesis to create a high-quality visual asset for their World Bible.
   `;
 
   return withRetry(async () => {

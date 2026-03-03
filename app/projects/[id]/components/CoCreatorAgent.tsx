@@ -41,6 +41,7 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const isListeningRef = useRef(false);
+  const [expandedSuggestions, setExpandedSuggestions] = useState<Set<string>>(new Set());
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: "Hello! I'm your Co-Creator Agent. I've analyzed your project and I'm ready to help you craft a blockbuster. What's on your mind? We can brainstorm the script, refine characters, or fix plot holes." }
   ]);
@@ -140,19 +141,20 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
 
   const processCommands = (text: string): Suggestion[] => {
     const suggestions: Suggestion[] = [];
+    const tagLookahead = '(?=\\s*\\[(?:UPDATE_SCRIPT|ADD_CHARACTER|ADD_ENVIRONMENT)\\]|$)';
 
     // [UPDATE_SCRIPT]: New script content here...
-    const scriptMatch = text.match(/\[UPDATE_SCRIPT\]:\s*([\s\S]*?)(?=\[|$)/);
-    if (scriptMatch) {
+    const scriptMatches = text.matchAll(new RegExp(`\\[UPDATE_SCRIPT\\]:\\s*([\\s\\S]*?)${tagLookahead}`, 'g'));
+    for (const match of scriptMatches) {
       suggestions.push({
-        id: `s-script-${Date.now()}`,
+        id: `s-script-${Date.now()}-${Math.random()}`,
         type: 'script',
-        content: scriptMatch[1].trim()
+        content: match[1].trim()
       });
     }
 
     // [ADD_CHARACTER]: Name | Description
-    const charMatches = text.matchAll(/\[ADD_CHARACTER\]:\s*(.*?)\s*\|\s*(.*?)(?=\[|$)/g);
+    const charMatches = text.matchAll(new RegExp(`\\[ADD_CHARACTER\\]:\\s*(.*?)\\s*\\|\\s*(.*?)${tagLookahead}`, 'g'));
     for (const match of charMatches) {
       suggestions.push({
         id: `s-char-${Date.now()}-${Math.random()}`,
@@ -163,7 +165,7 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
     }
 
     // [ADD_ENVIRONMENT]: Name | Description/Mood
-    const envMatches = text.matchAll(/\[ADD_ENVIRONMENT\]:\s*(.*?)\s*\|\s*(.*?)(?=\[|$)/g);
+    const envMatches = text.matchAll(new RegExp(`\\[ADD_ENVIRONMENT\\]:\\s*(.*?)\\s*\\|\\s*(.*?)${tagLookahead}`, 'g'));
     for (const match of envMatches) {
       suggestions.push({
         id: `s-env-${Date.now()}-${Math.random()}`,
@@ -266,6 +268,10 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                       {/* Suggestions UI */}
                       {m.suggestions && m.suggestions.length > 0 && (
                         <div className="ml-9 space-y-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Sparkles className="size-3 text-primary" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">Pending Suggestions</span>
+                          </div>
                           {m.suggestions.map((s) => (
                             <motion.div 
                               key={s.id}
@@ -304,9 +310,51 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                               </div>
                               <div className="text-[10px] text-slate-400">
                                 {s.type === 'script' ? (
-                                  <p className="italic line-clamp-2">&quot;{s.content}&quot;</p>
+                                  <div className="relative">
+                                    <p className={`italic ${expandedSuggestions.has(s.id) ? '' : 'line-clamp-3'}`}>
+                                      &quot;{s.content}&quot;
+                                    </p>
+                                    {s.content.length > 100 && (
+                                      <button 
+                                        onClick={() => {
+                                          const next = new Set(expandedSuggestions);
+                                          if (next.has(s.id)) next.delete(s.id);
+                                          else next.add(s.id);
+                                          setExpandedSuggestions(next);
+                                        }}
+                                        className="text-primary hover:text-primary/80 mt-1 font-bold flex items-center gap-1"
+                                      >
+                                        {expandedSuggestions.has(s.id) ? (
+                                          <>Show Less <ChevronUp className="size-3" /></>
+                                        ) : (
+                                          <>Show More <ChevronDown className="size-3" /></>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 ) : (
-                                  <p><span className="text-white font-bold">{s.metadata.name}:</span> {s.content}</p>
+                                  <div className="relative">
+                                    <p className={expandedSuggestions.has(s.id) ? '' : 'line-clamp-2'}>
+                                      <span className="text-white font-bold">{s.metadata.name}:</span> {s.content}
+                                    </p>
+                                    {s.content.length > 60 && (
+                                      <button 
+                                        onClick={() => {
+                                          const next = new Set(expandedSuggestions);
+                                          if (next.has(s.id)) next.delete(s.id);
+                                          else next.add(s.id);
+                                          setExpandedSuggestions(next);
+                                        }}
+                                        className="text-primary hover:text-primary/80 mt-1 font-bold flex items-center gap-1"
+                                      >
+                                        {expandedSuggestions.has(s.id) ? (
+                                          <>Show Less <ChevronUp className="size-3" /></>
+                                        ) : (
+                                          <>Show More <ChevronDown className="size-3" /></>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </motion.div>
