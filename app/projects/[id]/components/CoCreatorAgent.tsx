@@ -282,7 +282,9 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                                    Suggestion: {s.type}
+                                    {s.type === 'character' ? `New Character: ${s.metadata.name}` : 
+                                     s.type === 'environment' ? `New Environment: ${s.metadata.name}` : 
+                                     'Script Update'}
                                   </span>
                                   {(s.type === 'character' || s.type === 'environment') && (
                                     <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[7px] font-black uppercase tracking-tighter text-primary animate-pulse">
