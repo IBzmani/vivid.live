@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { VisualManifest, Genre } from "../types";
+import { VisualManifest, Genre, VoiceName } from "../types";
 
 /**
  * Robust retry wrapper with exponential backoff to handle 429 (Rate Limit) errors.
@@ -203,41 +203,43 @@ export const generateNanoBananaImage = async (
   });
 };
 
-export const generateEmotionalAudio = async (text: string, brief: string, genre: Genre) => {
+export const generateEmotionalAudio = async (text: string, brief: string, genre: Genre, voice?: VoiceName, language?: string) => {
   const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
   
   const isDialogue = /[:"].*?"/g.test(text) || text.includes('"') || text.includes("'");
   
-  // Dynamic Voice selection based on Genre
-  let voiceName: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' = 'Charon';
+  // Dynamic Voice selection based on Genre if not provided
+  let voiceName: VoiceName = voice || 'Charon';
   let genreContext = "";
 
-  switch (genre) {
-    case 'Comedy':
-      voiceName = 'Puck'; 
-      genreContext = "with perfect comedic timing, high energy, and sharp wit.";
-      break;
-    case 'Horror':
-      voiceName = 'Fenrir';
-      genreContext = "with a deep, ominous, and terrifying atmosphere. Every pause should be heavy with dread.";
-      break;
-    case 'Action':
-      voiceName = 'Fenrir';
-      genreContext = "with high intensity, grit, and aggressive pacing.";
-      break;
-    case 'Drama':
-    case 'Noir':
-      voiceName = isDialogue ? 'Kore' : 'Charon';
-      genreContext = "with deep emotional resonance and cinematic gravitas.";
-      break;
-    case 'Sci-Fi':
-      voiceName = 'Zephyr';
-      genreContext = "with a precise, slightly detached, and futuristic authority.";
-      break;
+  if (!voice) {
+    switch (genre) {
+      case 'Comedy':
+        voiceName = 'Puck'; 
+        genreContext = "with perfect comedic timing, high energy, and sharp wit.";
+        break;
+      case 'Horror':
+        voiceName = 'Fenrir';
+        genreContext = "with a deep, ominous, and terrifying atmosphere. Every pause should be heavy with dread.";
+        break;
+      case 'Action':
+        voiceName = 'Fenrir';
+        genreContext = "with high intensity, grit, and aggressive pacing.";
+        break;
+      case 'Drama':
+      case 'Noir':
+        voiceName = isDialogue ? 'Kore' : 'Charon';
+        genreContext = "with deep emotional resonance and cinematic gravitas.";
+        break;
+      case 'Sci-Fi':
+        voiceName = 'Zephyr';
+        genreContext = "with a precise, slightly detached, and futuristic authority.";
+        break;
+    }
   }
 
   const performancePrompt = `
-    INSTRUCTION: Perform the following script ${genreContext}. 
+    INSTRUCTION: Perform the following script ${genreContext} in ${language || 'English'}. 
     The script contains bracketed emotional cues [like this]. 
     STRICT RULE: DO NOT SPEAK THE BRACKETED TEXT ALOUD. Use it ONLY to guide your vocal delivery.
     PERSONA: ${isDialogue ? 'Master Character Actor' : 'Cinematic Narrator'}.

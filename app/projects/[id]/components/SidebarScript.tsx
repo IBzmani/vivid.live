@@ -1,24 +1,38 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { FileText, Upload, ChevronDown, Drama, Smile, Skull, Zap, Rocket, Moon, Film } from 'lucide-react';
-import { Genre } from '../types';
+import { FileText, Upload, ChevronDown, Drama, Smile, Skull, Zap, Rocket, Moon, Film, Mic2, Globe, Gauge } from 'lucide-react';
+import { Genre, VoiceName } from '../types';
 
 interface SidebarScriptProps {
   script: string;
   genre: Genre;
+  voice: VoiceName;
+  language: string;
+  playbackRate: number;
   onScriptChange: (val: string) => void;
   onGenreChange: (val: Genre) => void;
+  onVoiceChange: (val: VoiceName) => void;
+  onLanguageChange: (val: string) => void;
+  onPlaybackRateChange: (val: number) => void;
   location: string;
   title: string;
   highlightText?: string;
   onUpload: (text: string) => void;
 }
 
-const SidebarScript: React.FC<SidebarScriptProps> = ({ script, genre, onScriptChange, onGenreChange, location, title, highlightText, onUpload }) => {
+const SidebarScript: React.FC<SidebarScriptProps> = ({ 
+  script, genre, voice, language, playbackRate,
+  onScriptChange, onGenreChange, onVoiceChange, onLanguageChange, onPlaybackRateChange,
+  location, title, highlightText, onUpload 
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGenreOpen, setIsGenreOpen] = useState(false);
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [isLangOpen, setIsLangOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const voiceDropdownRef = useRef<HTMLDivElement>(null);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,6 +47,12 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({ script, genre, onScriptCh
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsGenreOpen(false);
+      }
+      if (voiceDropdownRef.current && !voiceDropdownRef.current.contains(event.target as Node)) {
+        setIsVoiceOpen(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setIsLangOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -51,6 +71,8 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({ script, genre, onScriptCh
   };
 
   const genres: Genre[] = ['Drama', 'Comedy', 'Horror', 'Action', 'Sci-Fi', 'Noir'];
+  const voices: VoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
+  const languages = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Chinese', 'Yoruba'];
 
   const getGenreIcon = (g: Genre) => {
     switch (g) {
@@ -80,7 +102,7 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({ script, genre, onScriptCh
         <input type="file" ref={fileInputRef} className="hidden" accept=".txt,.md" onChange={handleFileChange} />
       </div>
       
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
         {/* Custom Genre Selection UI */}
         <div className="space-y-2 relative" ref={dropdownRef}>
           <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Atmospheric Profile</span>
@@ -120,6 +142,90 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({ script, genre, onScriptCh
             </div>
           )}
         </div>
+
+        {/* Voice Selection */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2 relative" ref={voiceDropdownRef}>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Voice Agent</span>
+            <button 
+              onClick={() => setIsVoiceOpen(!isVoiceOpen)}
+              className="w-full flex items-center justify-between bg-black/40 border border-white/5 rounded px-3 py-2 text-[10px] font-bold text-slate-300 uppercase tracking-widest hover:bg-white/5 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <Mic2 className="size-3 text-primary" />
+                <span>{voice}</span>
+              </div>
+              <ChevronDown className={`size-3 transition-transform ${isVoiceOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isVoiceOpen && (
+              <div className="absolute top-full left-0 w-full mt-1 bg-obsidian border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden backdrop-blur-xl">
+                {voices.map(v => (
+                  <button
+                    key={v}
+                    onClick={() => { onVoiceChange(v); setIsVoiceOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-[9px] font-bold uppercase tracking-widest hover:bg-primary hover:text-obsidian transition-all ${voice === v ? 'text-primary' : 'text-slate-400'}`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 relative" ref={langDropdownRef}>
+            <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Language</span>
+            <button 
+              onClick={() => setIsLangOpen(!isLangOpen)}
+              className="w-full flex items-center justify-between bg-black/40 border border-white/5 rounded px-3 py-2 text-[10px] font-bold text-slate-300 uppercase tracking-widest hover:bg-white/5 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <Globe className="size-3 text-primary" />
+                <span className="truncate">{language}</span>
+              </div>
+              <ChevronDown className={`size-3 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isLangOpen && (
+              <div className="absolute top-full left-0 w-full mt-1 bg-obsidian border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden backdrop-blur-xl max-h-40 overflow-y-auto">
+                {languages.map(l => (
+                  <button
+                    key={l}
+                    onClick={() => { onLanguageChange(l); setIsLangOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-[9px] font-bold uppercase tracking-widest hover:bg-primary hover:text-obsidian transition-all ${language === l ? 'text-primary' : 'text-slate-400'}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Playback Pace */}
+        <div className="space-y-3 p-3 bg-black/40 border border-white/5 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Gauge className="size-3 text-primary" />
+              <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Playback Pace</span>
+            </div>
+            <span className="text-[10px] font-mono text-primary">{playbackRate.toFixed(1)}x</span>
+          </div>
+          <input 
+            type="range" 
+            min="0.5" 
+            max="2.0" 
+            step="0.1" 
+            value={playbackRate}
+            onChange={(e) => onPlaybackRateChange(parseFloat(e.target.value))}
+            className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-primary"
+          />
+          <div className="flex justify-between text-[7px] text-slate-600 font-bold uppercase tracking-tighter">
+            <span>Slow</span>
+            <span>Normal</span>
+            <span>Fast</span>
+          </div>
+        </div>
+
+        <div className="h-px bg-white/5"></div>
 
         <h1 className="text-white text-lg font-bold leading-tight mt-2">{title}</h1>
         <p className="text-slate-500 uppercase text-[9px] tracking-widest border-b border-white/5 pb-2">{location}</p>

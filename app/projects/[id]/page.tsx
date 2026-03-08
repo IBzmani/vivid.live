@@ -188,19 +188,31 @@ export default function ProjectPage() {
   const handleSynthesizeAudio = async (frameId: string) => {
     const frame = scene.frames.find(f => f.id === frameId);
     if (!frame?.scriptSegment) return;
+
+    if (frame.audioData) {
+      playAudio(frame.audioData, scene.playbackRate);
+      return;
+    }
+
     setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
     try {
-      const audio = await generateEmotionalAudio(frame.scriptSegment, frame.directorsBrief?.emotionalArc || "Dramatic", scene.genre);
+      const audio = await generateEmotionalAudio(
+        frame.scriptSegment, 
+        frame.directorsBrief?.emotionalArc || "Dramatic", 
+        scene.genre,
+        scene.voice,
+        scene.language
+      );
       if (audio) {
         setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
-        playAudio(audio);
+        playAudio(audio, scene.playbackRate);
       }
     } catch (err) { 
       setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) })); 
     }
   };
 
-  const playAudio = async (base64: string) => {
+  const playAudio = async (base64: string, rate: number = 1.0) => {
     const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass({ sampleRate: 24000 });
     const binary = atob(base64);
@@ -212,6 +224,7 @@ export default function ProjectPage() {
     for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
     const source = ctx.createBufferSource();
     source.buffer = buffer;
+    source.playbackRate.value = rate;
     source.connect(ctx.destination);
     source.start();
   };
@@ -230,8 +243,22 @@ export default function ProjectPage() {
         <SidebarScript 
           script={scene.script} 
           genre={scene.genre}
+          voice={scene.voice}
+          language={scene.language}
+          playbackRate={scene.playbackRate}
           onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} 
           onGenreChange={(g) => setScene(prev => ({ ...prev, genre: g }))}
+          onVoiceChange={(v) => setScene(prev => ({ 
+            ...prev, 
+            voice: v, 
+            frames: prev.frames.map(f => ({ ...f, audioData: undefined })) 
+          }))}
+          onLanguageChange={(l) => setScene(prev => ({ 
+            ...prev, 
+            language: l, 
+            frames: prev.frames.map(f => ({ ...f, audioData: undefined })) 
+          }))}
+          onPlaybackRateChange={(r) => setScene(prev => ({ ...prev, playbackRate: r }))}
           location={scene.location} 
           title={scene.title} 
           highlightText={selectedFrame?.scriptSegment} 

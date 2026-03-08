@@ -42,11 +42,16 @@ export interface Frame {
   };
 }
 
+export type VoiceName = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
+
 export interface SceneState {
   title: string;
   location: string;
   script: string;
   genre: Genre;
+  voice: VoiceName;
+  language: string;
+  playbackRate: number;
   manifest: VisualManifest;
   frames: Frame[];
   sentimentData: number[];
