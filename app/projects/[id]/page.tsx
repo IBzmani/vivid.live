@@ -229,6 +229,38 @@ export default function ProjectPage() {
     source.start();
   };
 
+  const [previewingVoice, setPreviewingVoice] = useState<VoiceName | null>(null);
+
+  const handlePreviewVoice = async (voiceName: VoiceName) => {
+    if (previewingVoice) return;
+    setPreviewingVoice(voiceName);
+    
+    const previewSentences: Record<VoiceName, string> = {
+      'Puck': "I'm Puck! I bring the energy, the wit, and just a touch of chaos to your story.",
+      'Charon': "I am Charon. My voice carries the weight of history and the depth of the cinematic soul.",
+      'Kore': "I am Kore. I find the heart in every line, bringing emotional truth to your characters.",
+      'Fenrir': "They call me Fenrir. I thrive in the shadows, where intensity and grit define the narrative.",
+      'Zephyr': "I am Zephyr. Precision and authority are my hallmarks. The future is spoken in my tone."
+    };
+
+    try {
+      const audio = await generateEmotionalAudio(
+        previewSentences[voiceName],
+        "Preview",
+        scene.genre,
+        voiceName,
+        scene.language
+      );
+      if (audio) {
+        await playAudio(audio, 1.0);
+      }
+    } catch (err) {
+      console.error("Preview failed", err);
+    } finally {
+      setPreviewingVoice(null);
+    }
+  };
+
   const selectedFrame = scene.frames.find(f => f.id === selectedFrameId);
 
   return (
@@ -259,6 +291,8 @@ export default function ProjectPage() {
             frames: prev.frames.map(f => ({ ...f, audioData: undefined })) 
           }))}
           onPlaybackRateChange={(r) => setScene(prev => ({ ...prev, playbackRate: r }))}
+          onPreviewVoice={handlePreviewVoice}
+          previewingVoice={previewingVoice}
           location={scene.location} 
           title={scene.title} 
           highlightText={selectedFrame?.scriptSegment} 

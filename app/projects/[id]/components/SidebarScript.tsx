@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { FileText, Upload, ChevronDown, Drama, Smile, Skull, Zap, Rocket, Moon, Film, Mic2, Globe, Gauge } from 'lucide-react';
+import { FileText, Upload, ChevronDown, Drama, Smile, Skull, Zap, Rocket, Moon, Film, Mic2, Globe, Gauge, RotateCw } from 'lucide-react';
 import { Genre, VoiceName } from '../types';
 
 interface SidebarScriptProps {
@@ -15,6 +15,8 @@ interface SidebarScriptProps {
   onVoiceChange: (val: VoiceName) => void;
   onLanguageChange: (val: string) => void;
   onPlaybackRateChange: (val: number) => void;
+  onPreviewVoice: (voice: VoiceName) => void;
+  previewingVoice: VoiceName | null;
   location: string;
   title: string;
   highlightText?: string;
@@ -24,6 +26,7 @@ interface SidebarScriptProps {
 const SidebarScript: React.FC<SidebarScriptProps> = ({ 
   script, genre, voice, language, playbackRate,
   onScriptChange, onGenreChange, onVoiceChange, onLanguageChange, onPlaybackRateChange,
+  onPreviewVoice, previewingVoice,
   location, title, highlightText, onUpload 
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -160,13 +163,28 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({
             {isVoiceOpen && (
               <div className="absolute top-full left-0 w-full mt-1 bg-obsidian border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden backdrop-blur-xl">
                 {voices.map(v => (
-                  <button
-                    key={v}
-                    onClick={() => { onVoiceChange(v); setIsVoiceOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-[9px] font-bold uppercase tracking-widest hover:bg-primary hover:text-obsidian transition-all ${voice === v ? 'text-primary' : 'text-slate-400'}`}
-                  >
-                    {v}
-                  </button>
+                  <div key={v} className="flex items-center group/voice">
+                    <button
+                      onClick={() => { onVoiceChange(v); setIsVoiceOpen(false); }}
+                      className={`flex-1 text-left px-3 py-2 text-[9px] font-bold uppercase tracking-widest hover:bg-primary hover:text-obsidian transition-all ${voice === v ? 'text-primary' : 'text-slate-400'}`}
+                    >
+                      {v}
+                    </button>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPreviewVoice(v);
+                      }}
+                      className="px-2 py-2 text-primary hover:bg-primary hover:text-obsidian transition-all"
+                      title={`Preview ${v}`}
+                    >
+                      {previewingVoice === v ? (
+                        <RotateCw className="size-3 animate-spin" />
+                      ) : (
+                        <Zap className="size-3" />
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

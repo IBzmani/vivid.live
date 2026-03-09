@@ -5,15 +5,22 @@ import { VisualManifest, Genre, VoiceName } from "../types";
  * Robust retry wrapper with exponential backoff to handle 429 (Rate Limit) errors.
  */
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
-  let delay = 1000;
+  let delay = 2000;
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
     } catch (error: any) {
-      const isRateLimit = error?.message?.includes('429') || error?.status === 429;
+      const errorStr = String(error).toLowerCase() + (error?.message ? " " + error.message.toLowerCase() : "");
+      const isRateLimit = 
+        error?.message?.includes('429') || 
+        error?.status === 429 || 
+        errorStr.includes('429') || 
+        errorStr.includes('resource_exhausted') ||
+        errorStr.includes('rate_limit');
+
       if (isRateLimit && i < maxRetries - 1) {
         console.warn(`Rate limit hit (429). Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 500));
+        await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 1000));
         delay *= 2;
         continue;
       }
@@ -249,24 +256,19 @@ export const generateEmotionalAudio = async (text: string, brief: string, genre:
   `.trim();
 
   return withRetry(async () => {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: performancePrompt }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: { 
-            voiceConfig: { 
-              prebuiltVoiceConfig: { voiceName } 
-            } 
-          }
-        },
-      });
-      return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    } catch (err) {
-      console.error("Advanced TTS synthesis failed:", err);
-      return null;
-    }
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: performancePrompt }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: { 
+          voiceConfig: { 
+            prebuiltVoiceConfig: { voiceName } 
+          } 
+        }
+      },
+    });
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
   });
 };
 
