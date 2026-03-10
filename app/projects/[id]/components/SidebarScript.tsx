@@ -75,7 +75,7 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({
 
   const genres: Genre[] = ['Drama', 'Comedy', 'Horror', 'Action', 'Sci-Fi', 'Noir'];
   const voices: VoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
-  const languages = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Chinese', 'Yoruba'];
+  const languages = ['English', 'Spanish', 'French', 'German'];
 
   const getGenreIcon = (g: Genre) => {
     switch (g) {
