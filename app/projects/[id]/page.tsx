@@ -1,12 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCw } from 'lucide-react';
+import { RotateCw, Zap, Loader2, ArrowLeft } from 'lucide-react';
+import { 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  updateDoc, 
+  collection, 
+  deleteDoc,
+  serverTimestamp,
+  getDoc
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/components/FirebaseProvider';
 
 import { INITIAL_SCENE } from './constants';
-import { SceneState, Character, Environment, Frame, Genre } from './types';
+import { SceneState, Character, Environment, Frame, Genre, VoiceName } from './types';
 import Header from './components/Header';
 import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
@@ -26,96 +38,285 @@ import { exportCinemaMovie } from './services/exportService';
 
 export default function ProjectPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
+  const { user } = useAuth();
 
   const [scene, setScene] = useState<SceneState>(INITIAL_SCENE);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
+  const [hasApiKey, setHasApiKey] = useState<boolean>(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
+  // Check for API Key on mount
   useEffect(() => {
-    if (scene.frames.length > 0 && !selectedFrameId) {
-      setSelectedFrameId(scene.frames[0].id);
+    const checkApiKey = async () => {
+      if ((window as any).aistudio?.hasSelectedApiKey) {
+        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      }
+    };
+    checkApiKey();
+  }, []);
+
+  // Firestore Retry Helper
+  const withFirestoreRetry = async <T extends unknown>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
+    let delay = 1000;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const errStr = String(err).toLowerCase();
+        const isRetryable = errStr.includes('503') || errStr.includes('unavailable') || errStr.includes('deadline');
+        if (isRetryable && i < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, delay));
+          delay *= 2;
+          continue;
+        }
+        throw err;
+      }
     }
-  }, [scene.frames, selectedFrameId]);
+    throw new Error('Max retries reached');
+  };
+
+  // Firestore Error Handler
+  const handleFirestoreError = (error: any, operation: string, path: string) => {
+    const errInfo = {
+      error: error.message,
+      operationType: operation,
+      path,
+      authInfo: {
+        userId: user?.uid,
+        email: user?.email,
+      }
+    };
+    console.error('Firestore Error:', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  };
+
+  // Real-time Sync
+  useEffect(() => {
+    if (!user || !projectId) return;
+
+    const projectRef = doc(db, 'projects', projectId);
+    
+    // Sync Project Base
+    const unsubProject = onSnapshot(projectRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setScene(prev => ({
+          ...prev,
+          title: data.title || prev.title,
+          script: data.script || prev.script,
+          genre: data.genre || prev.genre,
+          voice: data.voice || prev.voice,
+          language: data.language || prev.language,
+          playbackRate: data.playbackRate || prev.playbackRate,
+        }));
+      } else {
+        // Create project if it doesn't exist
+        setDoc(projectRef, {
+          title: 'Untitled Lorecast',
+          ownerId: user.uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          script: '',
+          genre: 'Drama',
+          voice: 'Puck',
+          language: 'English',
+          playbackRate: 1.0
+        }).catch(err => handleFirestoreError(err, 'create', `projects/${projectId}`));
+      }
+      setIsInitialLoading(false);
+    }, (err) => handleFirestoreError(err, 'list', `projects/${projectId}`));
+
+    // Sync Characters
+    const unsubChars = onSnapshot(collection(db, 'projects', projectId, 'characters'), (snap) => {
+      const characters = snap.docs.map(d => ({ id: d.id, ...d.data() } as Character));
+      setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters } }));
+    }, (err) => handleFirestoreError(err, 'list', `projects/${projectId}/characters`));
+
+    // Sync Environments
+    const unsubEnvs = onSnapshot(collection(db, 'projects', projectId, 'environments'), (snap) => {
+      const environments = snap.docs.map(d => ({ id: d.id, ...d.data() } as Environment));
+      setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments } }));
+    }, (err) => handleFirestoreError(err, 'list', `projects/${projectId}/environments`));
+
+    // Sync Frames
+    const unsubFrames = onSnapshot(collection(db, 'projects', projectId, 'frames'), (snap) => {
+      const frames = snap.docs.map(d => ({ id: d.id, ...d.data() } as Frame)).sort((a, b) => (a as any).order - (b as any).order);
+      setScene(prev => ({ ...prev, frames }));
+    }, (err) => handleFirestoreError(err, 'list', `projects/${projectId}/frames`));
+
+    return () => {
+      unsubProject();
+      unsubChars();
+      unsubEnvs();
+      unsubFrames();
+    };
+  }, [user, projectId]);
+
+  const updateProjectField = async (field: string, value: any) => {
+    if (!projectId) return;
+    try {
+      await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId), {
+        [field]: value,
+        updatedAt: new Date().toISOString()
+      }));
+    } catch (err) {
+      handleFirestoreError(err, 'update', `projects/${projectId}`);
+    }
+  };
 
   const addCharacter = async (name: string, description: string, imageUrl?: string) => {
     const id = `c-${Date.now()}`;
-    const newChar: Character = { id, name, role: "Principal", description, image: imageUrl || 'loading://character' };
-    setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: [...prev.manifest.characters, newChar] } }));
-    if (imageUrl) return;
+    const charData = { name, role: "Principal", description, image: imageUrl || 'loading://character' };
+    
     try {
+      await withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'characters', id), charData));
+      if (imageUrl) return;
+      
       const img = await generateBibleAsset(name, description, 'character');
-      if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === id ? { ...c, image: img } : c) } }));
-    } catch (err) { 
-      setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.filter(c => c.id !== id) } }));
+      if (img) {
+        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { image: img }));
+      }
+    } catch (err) {
+      handleFirestoreError(err, 'write', `projects/${projectId}/characters/${id}`);
     }
   };
 
-  const removeCharacter = (id: string) => setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.filter(c => c.id !== id) } }));
+  const removeCharacter = async (id: string) => {
+    try {
+      await withFirestoreRetry(() => deleteDoc(doc(db, 'projects', projectId, 'characters', id)));
+    } catch (err) {
+      handleFirestoreError(err, 'delete', `projects/${projectId}/characters/${id}`);
+    }
+  };
+
+  const updateCharacter = async (name: string, description: string) => {
+    const existing = scene.manifest.characters.find(c => c.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      try {
+        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { 
+          description, 
+          image: 'loading://character' 
+        }));
+        const img = await generateBibleAsset(name, description, 'character');
+        if (img) {
+          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: img }));
+        }
+      } catch (err) {
+        handleFirestoreError(err, 'update', `projects/${projectId}/characters/${existing.id}`);
+      }
+    } else {
+      addCharacter(name, description);
+    }
+  };
 
   const addEnvironment = async (name: string, description: string, imageUrl?: string) => {
     const id = `e-${Date.now()}`;
-    const newEnv: Environment = { id, name, mood: "Concept", colors: ['#555'], image: imageUrl || 'loading://environment' };
-    setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: [...prev.manifest.environments, newEnv] } }));
-    if (imageUrl) return;
+    const envData = { name, mood: "Concept", colors: ['#555'], image: imageUrl || 'loading://environment' };
+    
     try {
+      await withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'environments', id), envData));
+      if (imageUrl) return;
+      
       const img = await generateBibleAsset(name, description, 'environment');
-      if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === id ? { ...e, image: img } : e) } }));
-    } catch (err) { 
-      setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.filter(e => e.id !== id) } }));
+      if (img) {
+        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { image: img }));
+      }
+    } catch (err) {
+      handleFirestoreError(err, 'write', `projects/${projectId}/environments/${id}`);
     }
   };
 
-  const removeEnvironment = (id: string) => setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.filter(e => e.id !== id) } }));
-
-  const assignAssetToFrame = (assetId: string, type: 'char' | 'env') => {
-    if (!selectedFrameId) return;
-    setScene(prev => ({
-      ...prev,
-      frames: prev.frames.map(f => {
-        if (f.id === selectedFrameId) {
-          return type === 'char' ? { ...f, characterId: assetId } : { ...f, environmentId: assetId };
-        }
-        return f;
-      })
-    }));
+  const removeEnvironment = async (id: string) => {
+    try {
+      await withFirestoreRetry(() => deleteDoc(doc(db, 'projects', projectId, 'environments', id)));
+    } catch (err) {
+      handleFirestoreError(err, 'delete', `projects/${projectId}/environments/${id}`);
+    }
   };
 
-  const appendFrame = () => {
+  const updateEnvironment = async (name: string, description: string) => {
+    const existing = scene.manifest.environments.find(e => e.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      try {
+        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { 
+          mood: description, 
+          image: 'loading://environment' 
+        }));
+        const img = await generateBibleAsset(name, description, 'environment');
+        if (img) {
+          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: img }));
+        }
+      } catch (err) {
+        handleFirestoreError(err, 'update', `projects/${projectId}/environments/${existing.id}`);
+      }
+    } else {
+      addEnvironment(name, description);
+    }
+  };
+
+  const assignAssetToFrame = async (assetId: string, type: 'char' | 'env') => {
+    if (!selectedFrameId) return;
+    try {
+      await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'frames', selectedFrameId), {
+        [type === 'char' ? 'characterId' : 'environmentId']: assetId
+      }));
+    } catch (err) {
+      handleFirestoreError(err, 'update', `projects/${projectId}/frames/${selectedFrameId}`);
+    }
+  };
+
+  const appendFrame = async () => {
     const id = `f-ext-${Date.now()}`;
-    const newFrame: Frame = {
-      id,
+    const newFrame = {
       title: `Frame ${String(scene.frames.length + 1).padStart(2, '0')}`,
       timeRange: "00:00 - 00:05",
       image: "https://placehold.co/1280x720/1a1a1a/444?text=Empty+Shot",
       prompt: "New shot description...",
       scriptSegment: "...",
+      order: scene.frames.length,
       directorsBrief: { emotionalArc: "Neutral", lightingScheme: "Standard", cameraLogic: "Static", pacing: "Moderate" }
     };
-    setScene(prev => ({ ...prev, frames: [...prev.frames, newFrame] }));
-    setSelectedFrameId(id);
+    try {
+      await withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'frames', id), newFrame));
+      setSelectedFrameId(id);
+    } catch (err) {
+      handleFirestoreError(err, 'write', `projects/${projectId}/frames/${id}`);
+    }
   };
 
   const handleManuscriptUpload = async (text: string) => {
     setIsGenerating(true);
     try {
       const analysis = await analyzeManuscriptDeep(text);
-      const characters = (analysis.characters || []).map((c: any, i: number) => ({ ...c, id: `c-auto-${i}`, image: 'loading://character' }));
-      const environments = (analysis.environments || []).map((e: any, i: number) => ({ ...e, id: `e-auto-${i}`, image: 'loading://environment' }));
-      setScene(prev => ({ ...prev, script: text, manifest: { ...prev.manifest, characters, environments } }));
+      await updateDoc(doc(db, 'projects', projectId), { script: text });
       
-      // Parallel generation of images for characters and environments
-      characters.forEach(async (char: any) => {
-        const img = await generateBibleAsset(char.name, char.description, 'character');
-        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, characters: prev.manifest.characters.map(c => c.id === char.id ? { ...c, image: img } : c) } }));
-      });
-      environments.forEach(async (env: any) => {
-        const img = await generateBibleAsset(env.name, env.mood, 'environment');
-        if (img) setScene(prev => ({ ...prev, manifest: { ...prev.manifest, environments: prev.manifest.environments.map(e => e.id === env.id ? { ...e, image: img } : e) } }));
-      });
+      // Clear old assets
+      const charSnaps = await snapCollection(`projects/${projectId}/characters`);
+      const envSnaps = await snapCollection(`projects/${projectId}/environments`);
+      await Promise.all([
+        ...charSnaps.docs.map(d => deleteDoc(d.ref)),
+        ...envSnaps.docs.map(d => deleteDoc(d.ref))
+      ]);
+
+      // Add new ones
+      for (let char of (analysis.characters || [])) {
+        await addCharacter(char.name, char.description);
+      }
+      for (let env of (analysis.environments || [])) {
+        await addEnvironment(env.name, env.mood);
+      }
     } finally { setIsGenerating(false); }
+  };
+
+  const snapCollection = async (path: string) => {
+    const { getDocs } = await import('firebase/firestore');
+    return getDocs(collection(db, path));
   };
 
   const handleGenerateStoryboard = async () => {
@@ -123,17 +324,26 @@ export default function ProjectPage() {
     setIsGenerating(true);
     try {
       const data = await generateSceneWithBrief(scene.script, scene.manifest, scene.genre);
+      
+      // Clear old frames
+      const frameSnaps = await snapCollection(`projects/${projectId}/frames`);
+      await Promise.all(frameSnaps.docs.map(d => deleteDoc(d.ref)));
+
       const newFrames = data.frames.map((f: any, i: number) => ({
         ...f,
         id: `f-${i}-${Date.now()}`,
         timeRange: `00:0${i*5} - 00:0${(i+1)*5}`,
         image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Composing+Shot...',
-        isGenerating: true
+        order: i
       }));
-      setScene(prev => ({ ...prev, frames: newFrames }));
+
+      for (let frame of newFrames) {
+        await setDoc(doc(db, 'projects', projectId, 'frames', frame.id), frame);
+      }
+      
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
       
-      // Sequential image generation to avoid overwhelming the API
+      // Sequential image generation
       for (let frame of newFrames) {
         try {
           const url = await generateNanoBananaImage(frame.prompt, scene.manifest, { 
@@ -142,36 +352,24 @@ export default function ProjectPage() {
             shotType: frame.shotType, 
             emotion: frame.directorsBrief?.emotionalArc 
           });
-          if (url) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frame.id ? { ...f, image: url, isGenerating: false } : f) }));
+          if (url) {
+            await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { image: url });
+          }
         } catch (err) {
-          setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frame.id ? { ...f, isGenerating: false, image: 'https://placehold.co/1280x720/333/fff?text=Error' } : f) }));
+          await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { image: 'https://placehold.co/1280x720/333/fff?text=Error' });
         }
       }
     } finally { setIsGenerating(false); }
   };
 
-  const handleExportMovie = async () => {
-    if (isExporting) return;
-    setIsExporting(true);
-    setExportProgress(0);
-    try {
-      const videoUrl = await exportCinemaMovie(scene.frames, (p) => setExportProgress(p));
-      const a = document.createElement('a');
-      a.href = videoUrl;
-      a.download = `${scene.title || 'Lorecast'}.mp4`;
-      a.click();
-    } catch (err) { 
-      alert("Export failed."); 
-    } finally { 
-      setIsExporting(false); 
-    }
-  };
-
   const handlePaintToEdit = async (frameId: string, instruction: string, coord?: { x: number, y: number }) => {
     const target = scene.frames.find(f => f.id === frameId);
     if (!target) return;
-    setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: true } : f) }));
+    
     try {
+      // Update UI to show loading
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: true } : f) }));
+      
       const editedUrl = await generateNanoBananaImage(
         instruction, 
         scene.manifest, 
@@ -179,9 +377,14 @@ export default function ProjectPage() {
         target.image, 
         coord
       );
-      if (editedUrl) setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, image: editedUrl, isGenerating: false } : f) }));
-    } catch (err) { 
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f) })); 
+      
+      if (editedUrl) {
+        await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { image: editedUrl });
+      }
+    } catch (err) {
+      console.error("Paint to edit failed", err);
+    } finally {
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGenerating: false } : f) }));
     }
   };
 
@@ -194,8 +397,8 @@ export default function ProjectPage() {
       return;
     }
 
-    setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
     try {
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
       const audio = await generateEmotionalAudio(
         frame.scriptSegment, 
         frame.directorsBrief?.emotionalArc || "Dramatic", 
@@ -204,11 +407,13 @@ export default function ProjectPage() {
         scene.language
       );
       if (audio) {
-        setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f) }));
+        await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { audioData: audio });
         playAudio(audio, scene.playbackRate);
       }
-    } catch (err) { 
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) })); 
+    } catch (err) {
+      console.error("Audio synthesis failed", err);
+    } finally {
+      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) }));
     }
   };
 
@@ -261,7 +466,45 @@ export default function ProjectPage() {
     }
   };
 
+  const handleSelectKey = async () => {
+    if ((window as any).aistudio?.openSelectKey) {
+      await (window as any).aistudio.openSelectKey();
+      // Assume success after opening dialog
+      setHasApiKey(true);
+    }
+  };
+
+  const handleExportMovie = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportProgress(0);
+    try {
+      const url = await exportCinemaMovie(scene.frames, (progress) => {
+        setExportProgress(progress);
+      });
+      if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${scene.title || 'lorecast'}.mp4`;
+        a.click();
+      }
+    } catch (err) {
+      console.error("Export failed", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const selectedFrame = scene.frames.find(f => f.id === selectedFrameId);
+
+  if (isInitialLoading) {
+    return (
+      <div className="min-h-screen bg-obsidian flex flex-col items-center justify-center">
+        <Loader2 className="size-12 text-primary animate-spin mb-4" />
+        <p className="text-slate-500 font-mono text-xs uppercase tracking-widest animate-pulse">Syncing with Cloud Neural Link...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-obsidian text-white font-sans overflow-hidden relative">
@@ -278,19 +521,11 @@ export default function ProjectPage() {
           voice={scene.voice}
           language={scene.language}
           playbackRate={scene.playbackRate}
-          onScriptChange={(s) => setScene(prev => ({ ...prev, script: s }))} 
-          onGenreChange={(g) => setScene(prev => ({ ...prev, genre: g }))}
-          onVoiceChange={(v) => setScene(prev => ({ 
-            ...prev, 
-            voice: v, 
-            frames: prev.frames.map(f => ({ ...f, audioData: undefined })) 
-          }))}
-          onLanguageChange={(l) => setScene(prev => ({ 
-            ...prev, 
-            language: l, 
-            frames: prev.frames.map(f => ({ ...f, audioData: undefined })) 
-          }))}
-          onPlaybackRateChange={(r) => setScene(prev => ({ ...prev, playbackRate: r }))}
+          onScriptChange={(s) => updateProjectField('script', s)} 
+          onGenreChange={(g) => updateProjectField('genre', g)}
+          onVoiceChange={(v) => updateProjectField('voice', v)}
+          onLanguageChange={(l) => updateProjectField('language', l)}
+          onPlaybackRateChange={(r) => updateProjectField('playbackRate', r)}
           onPreviewVoice={handlePreviewVoice}
           previewingVoice={previewingVoice}
           location={scene.location} 
@@ -322,15 +557,67 @@ export default function ProjectPage() {
         shotType={selectedFrame?.shotType} 
       />
       
-      <CoCreatorAgent 
+        <CoCreatorAgent 
         script={scene.script}
         manifest={scene.manifest}
         genre={scene.genre}
-        onUpdateScript={(s) => setScene(prev => ({ ...prev, script: s }))}
+        onUpdateScript={(s) => updateProjectField('script', s)}
         onAddCharacter={addCharacter}
+        onUpdateCharacter={updateCharacter}
         onAddEnvironment={addEnvironment}
+        onUpdateEnvironment={updateEnvironment}
       />
       
+      <button 
+        onClick={() => router.push('/dashboard')}
+        className="fixed top-4 left-4 z-[150] bg-white/5 hover:bg-white/10 p-2 rounded-lg border border-white/10 transition-all group"
+      >
+        <ArrowLeft className="size-5 text-slate-400 group-hover:text-white" />
+      </button>
+      
+      <AnimatePresence>
+        {!hasApiKey && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-obsidian/95 backdrop-blur-xl z-[200] flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div className="max-w-md space-y-6">
+              <div className="size-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="size-10 text-primary" />
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight text-white">Premium Models Active</h2>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                You are now using high-performance models. To continue, please select a billing-enabled API key from your Google Cloud project.
+              </p>
+              <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-left">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Requirements:</p>
+                <ul className="text-xs text-slate-300 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <div className="size-1.5 rounded-full bg-primary mt-1 shrink-0" />
+                    <span>Must be from a paid Google Cloud project.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="size-1.5 rounded-full bg-primary mt-1 shrink-0" />
+                    <span>Billing must be enabled on the project.</span>
+                  </li>
+                </ul>
+              </div>
+              <button 
+                onClick={handleSelectKey}
+                className="w-full bg-primary text-obsidian py-4 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] transition-transform active:scale-[0.98] shadow-[0_0_30px_rgba(236,182,19,0.2)]"
+              >
+                Select API Key
+              </button>
+              <p className="text-[10px] text-slate-500">
+                Learn more about <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Gemini API Billing</a>.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isExporting && (
           <motion.div 

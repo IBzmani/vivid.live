@@ -11,15 +11,20 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
       return await fn();
     } catch (error: any) {
       const errorStr = String(error).toLowerCase() + (error?.message ? " " + error.message.toLowerCase() : "");
-      const isRateLimit = 
+      const isRetryable = 
         error?.message?.includes('429') || 
         error?.status === 429 || 
         errorStr.includes('429') || 
         errorStr.includes('resource_exhausted') ||
-        errorStr.includes('rate_limit');
+        errorStr.includes('rate_limit') ||
+        error?.message?.includes('503') ||
+        error?.status === 503 ||
+        errorStr.includes('503') ||
+        errorStr.includes('unavailable') ||
+        errorStr.includes('deadline_exceeded');
 
-      if (isRateLimit && i < maxRetries - 1) {
-        console.warn(`Rate limit hit (429). Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+      if (isRetryable && i < maxRetries - 1) {
+        console.warn(`Retryable error hit (${error?.status || 'unknown'}). Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 1000));
         delay *= 2;
         continue;
@@ -80,9 +85,14 @@ export const generateBibleAsset = async (name: string, description: string, type
 
   return withRetry(async () => {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3.1-flash-image-preview',
       contents: { parts: [{ text: prompt }] },
-      config: { imageConfig: { aspectRatio: "1:1" } }
+      config: { 
+        imageConfig: { 
+          aspectRatio: "1:1",
+          imageSize: "1K"
+        } 
+      }
     });
     const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
     return part?.inlineData ? `data:image/png;base64,${part.inlineData.data}` : null;
@@ -201,9 +211,14 @@ export const generateNanoBananaImage = async (
   
   return withRetry(async () => {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-3.1-flash-image-preview',
       contents: { parts },
-      config: { imageConfig: { aspectRatio: "16:9" } }
+      config: { 
+        imageConfig: { 
+          aspectRatio: "16:9",
+          imageSize: "1K"
+        } 
+      }
     });
     const imgPart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
     return imgPart?.inlineData ? `data:image/png;base64,${imgPart.inlineData.data}` : null;
@@ -321,13 +336,16 @@ export const chatWithCoCreator = async (
     When you want to suggest a concrete change, you MUST use these tags at the VERY END of your response, each on a new line. 
     The user will see these as "Suggestions" they can Approve or Decline.
     - To update the script: [UPDATE_SCRIPT]: <full new script content>
-    - To add a character: [ADD_CHARACTER]: <Name> | <Visual Description for AI Synthesis>
-    - To add an environment: [ADD_ENVIRONMENT]: <Name> | <Mood/Atmosphere Description for AI Synthesis>
+    - To add a NEW character: [ADD_CHARACTER]: <Name> | <Visual Description for AI Synthesis>
+    - To update an EXISTING character's visual plate: [UPDATE_CHARACTER]: <Name> | <New Visual Description>
+    - To add a NEW environment: [ADD_ENVIRONMENT]: <Name> | <Mood/Atmosphere Description for AI Synthesis>
+    - To update an EXISTING environment's visual plate: [UPDATE_ENVIRONMENT]: <Name> | <New Mood/Atmosphere Description>
     
     IMPORTANT: 
     1. You can suggest multiple characters or environments in one response.
     2. Always provide a rich visual description for characters and environments so the AI synthesis can create a high-quality asset.
-    3. Explain to the user that approving the suggestion will trigger AI synthesis to create a high-quality visual asset for their World Bible.
+    3. If you significantly change the "vibe" or "era" of the story (e.g., switching to Body Horror or Sci-Fi), you MUST suggest [UPDATE_CHARACTER] or [UPDATE_ENVIRONMENT] for the main cast and locations to ensure visual consistency with your new pitch.
+    4. Explain to the user that approving the suggestion will trigger AI synthesis to create a high-quality visual asset for their World Bible.
   `;
 
   return withRetry(async () => {

@@ -1,6 +1,8 @@
 import type {Metadata} from 'next';
 import { Spline_Sans } from 'next/font/google';
 import './globals.css'; // Global styles
+import { FirebaseProvider } from '@/components/FirebaseProvider';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const splineSans = Spline_Sans({
   subsets: ['latin'],
@@ -16,7 +18,11 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${splineSans.variable} font-display bg-background-dark text-background-light selection:bg-primary selection:text-obsidian antialiased`} suppressHydrationWarning>
-        {children}
+        <ErrorBoundary>
+          <FirebaseProvider>
+            {children}
+          </FirebaseProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

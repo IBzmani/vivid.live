@@ -7,7 +7,7 @@ import { chatWithCoCreator } from '../services/geminiService';
 import { VisualManifest, Genre } from '../types';
 
 interface Suggestion {
-  type: 'script' | 'character' | 'environment';
+  type: 'script' | 'character' | 'environment' | 'update_character' | 'update_environment';
   content: string;
   metadata?: any;
   id: string;
@@ -25,7 +25,9 @@ interface CoCreatorAgentProps {
   genre: Genre;
   onUpdateScript: (newScript: string) => void;
   onAddCharacter: (name: string, description: string) => void;
+  onUpdateCharacter: (name: string, description: string) => void;
   onAddEnvironment: (name: string, mood: string) => void;
+  onUpdateEnvironment: (name: string, mood: string) => void;
 }
 
 const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
@@ -34,7 +36,9 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
   genre,
   onUpdateScript,
   onAddCharacter,
-  onAddEnvironment
+  onUpdateCharacter,
+  onAddEnvironment,
+  onUpdateEnvironment
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -141,7 +145,7 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
 
   const processCommands = (text: string): Suggestion[] => {
     const suggestions: Suggestion[] = [];
-    const tagLookahead = '(?=\\s*\\[(?:UPDATE_SCRIPT|ADD_CHARACTER|ADD_ENVIRONMENT)\\]|$)';
+    const tagLookahead = '(?=\\s*\\[(?:UPDATE_SCRIPT|ADD_CHARACTER|UPDATE_CHARACTER|ADD_ENVIRONMENT|UPDATE_ENVIRONMENT)\\]|$)';
 
     // [UPDATE_SCRIPT]: New script content here...
     const scriptMatches = text.matchAll(new RegExp(`\\[UPDATE_SCRIPT\\]:\\s*([\\s\\S]*?)${tagLookahead}`, 'g'));
@@ -164,12 +168,34 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
       });
     }
 
+    // [UPDATE_CHARACTER]: Name | Description
+    const updateCharMatches = text.matchAll(new RegExp(`\\[UPDATE_CHARACTER\\]:\\s*(.*?)\\s*\\|\\s*(.*?)${tagLookahead}`, 'g'));
+    for (const match of updateCharMatches) {
+      suggestions.push({
+        id: `s-up-char-${Date.now()}-${Math.random()}`,
+        type: 'update_character',
+        content: match[2].trim(),
+        metadata: { name: match[1].trim() }
+      });
+    }
+
     // [ADD_ENVIRONMENT]: Name | Description/Mood
     const envMatches = text.matchAll(new RegExp(`\\[ADD_ENVIRONMENT\\]:\\s*(.*?)\\s*\\|\\s*(.*?)${tagLookahead}`, 'g'));
     for (const match of envMatches) {
       suggestions.push({
         id: `s-env-${Date.now()}-${Math.random()}`,
         type: 'environment',
+        content: match[2].trim(),
+        metadata: { name: match[1].trim() }
+      });
+    }
+
+    // [UPDATE_ENVIRONMENT]: Name | Description/Mood
+    const updateEnvMatches = text.matchAll(new RegExp(`\\[UPDATE_ENVIRONMENT\\]:\\s*(.*?)\\s*\\|\\s*(.*?)${tagLookahead}`, 'g'));
+    for (const match of updateEnvMatches) {
+      suggestions.push({
+        id: `s-up-env-${Date.now()}-${Math.random()}`,
+        type: 'update_environment',
         content: match[2].trim(),
         metadata: { name: match[1].trim() }
       });
@@ -183,8 +209,12 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
       onUpdateScript(suggestion.content);
     } else if (suggestion.type === 'character') {
       onAddCharacter(suggestion.metadata.name, suggestion.content);
+    } else if (suggestion.type === 'update_character') {
+      onUpdateCharacter(suggestion.metadata.name, suggestion.content);
     } else if (suggestion.type === 'environment') {
       onAddEnvironment(suggestion.metadata.name, suggestion.content);
+    } else if (suggestion.type === 'update_environment') {
+      onUpdateEnvironment(suggestion.metadata.name, suggestion.content);
     }
 
     // Remove suggestion from UI
@@ -283,10 +313,12 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">
                                     {s.type === 'character' ? `New Character: ${s.metadata.name}` : 
+                                     s.type === 'update_character' ? `Update Character: ${s.metadata.name}` :
                                      s.type === 'environment' ? `New Environment: ${s.metadata.name}` : 
+                                     s.type === 'update_environment' ? `Update Environment: ${s.metadata.name}` :
                                      'Script Update'}
                                   </span>
-                                  {(s.type === 'character' || s.type === 'environment') && (
+                                  {(s.type === 'character' || s.type === 'environment' || s.type === 'update_character' || s.type === 'update_environment') && (
                                     <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[7px] font-black uppercase tracking-tighter text-primary animate-pulse">
                                       <Sparkles className="size-2" />
                                       AI Synthesis

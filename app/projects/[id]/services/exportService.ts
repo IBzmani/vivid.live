@@ -1,6 +1,15 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { Frame } from '../types';
+
+/**
+ * Manual implementation of toBlobURL to avoid @ffmpeg/util dependency
+ * which may trigger read-only fetch errors in some environments.
+ */
+async function toBlobURL(url: string, mimeType: string): Promise<string> {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return URL.createObjectURL(new Blob([blob], { type: mimeType }));
+}
 
 let loadPromise: Promise<FFmpeg> | null = null;
 
@@ -98,7 +107,9 @@ async function getFileBytes(url: string): Promise<Uint8Array> {
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     return bytes;
   }
-  return await fetchFile(url);
+  const res = await fetch(url);
+  const buf = await res.arrayBuffer();
+  return new Uint8Array(buf);
 }
 
 /**

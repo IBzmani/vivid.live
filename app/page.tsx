@@ -91,9 +91,12 @@ export default function Page() {
             film production evolution for the future of storytelling.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <button suppressHydrationWarning className="w-full sm:w-auto bg-primary text-obsidian px-10 py-5 rounded-xl text-lg font-black uppercase tracking-widest gold-glow hover:scale-105 transition-transform">
+            <Link 
+              href="/dashboard"
+              className="w-full sm:w-auto bg-primary text-obsidian px-10 py-5 rounded-xl text-lg font-black uppercase tracking-widest gold-glow hover:scale-105 transition-transform flex items-center justify-center"
+            >
               Start Directing
-            </button>
+            </Link>
             <button suppressHydrationWarning className="w-full sm:w-auto glass-panel text-white border-white/10 px-10 py-5 rounded-xl text-lg font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
               Watch Showreel
             </button>

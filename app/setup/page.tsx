@@ -111,22 +111,40 @@ export default function SetupPage() {
     setIsTyping(true);
     const arch = ARCHETYPES.find(a => a.id === archId);
     
+    const runWithRetry = async (fn: () => Promise<any>, maxRetries = 3) => {
+      let delay = 2000;
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          return await fn();
+        } catch (error: any) {
+          const errorStr = String(error).toLowerCase();
+          const isRetryable = errorStr.includes('503') || errorStr.includes('429') || errorStr.includes('unavailable') || errorStr.includes('resource_exhausted');
+          if (isRetryable && i < maxRetries - 1) {
+            await new Promise(r => setTimeout(r, delay));
+            delay *= 2;
+            continue;
+          }
+          throw error;
+        }
+      }
+    };
+
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
       
       // 1. Generate Text
-      const textResponse = await ai.models.generateContent({
+      const textResponse = await runWithRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `You are a creative AI agent with the archetype: ${arch?.name}. ${arch?.description}. 
         Briefly introduce yourself to your new partner (the user) in 2 short sentences. 
         Stay in character.`,
-      });
+      }));
       
       const introText = textResponse.text || "I am ready to build worlds with you.";
       setAgentMessage(introText);
 
       // 2. Generate Audio (TTS)
-      const audioResponse = await ai.models.generateContent({
+      const audioResponse = await runWithRetry(() => ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: introText }] }],
         config: {
@@ -137,7 +155,7 @@ export default function SetupPage() {
             },
           },
         },
-      });
+      }));
 
       const base64Audio = audioResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (base64Audio) {

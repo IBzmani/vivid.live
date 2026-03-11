@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A cinematic project containing script, storyboard frames, and world bible assets.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "script": { "type": "string" },
+        "genre": { "type": "string" },
+        "voice": { "type": "string" },
+        "language": { "type": "string" },
+        "playbackRate": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "ownerId", "createdAt"]
+    },
+    "Character": {
+      "title": "Character",
+      "description": "A character asset in the world bible.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "description": { "type": "string" },
+        "image": { "type": "string" }
+      },
+      "required": ["name", "image"]
+    },
+    "Environment": {
+      "title": "Environment",
+      "description": "An environment asset in the world bible.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "mood": { "type": "string" },
+        "colors": { "type": "array", "items": { "type": "string" } },
+        "image": { "type": "string" }
+      },
+      "required": ["name", "image"]
+    },
+    "Frame": {
+      "title": "Frame",
+      "description": "A single storyboard frame.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "timeRange": { "type": "string" },
+        "image": { "type": "string" },
+        "prompt": { "type": "string" },
+        "scriptSegment": { "type": "string" },
+        "audioData": { "type": "string" },
+        "characterId": { "type": "string" },
+        "environmentId": { "type": "string" },
+        "shotType": { "type": "string" },
+        "order": { "type": "integer" },
+        "directorsBrief": {
+          "type": "object",
+          "properties": {
+            "emotionalArc": { "type": "string" },
+            "lightingScheme": { "type": "string" },
+            "cameraLogic": { "type": "string" },
+            "pacing": { "type": "string" }
+          }
+        }
+      },
+      "required": ["title", "order"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Top-level project document."
+    },
+    "/projects/{projectId}/characters/{characterId}": {
+      "schema": "Character",
+      "description": "Characters associated with the project."
+    },
+    "/projects/{projectId}/environments/{environmentId}": {
+      "schema": "Environment",
+      "description": "Environments associated with the project."
+    },
+    "/projects/{projectId}/frames/{frameId}": {
+      "schema": "Frame",
+      "description": "Storyboard frames associated with the project."
+    }
+  }
+}
