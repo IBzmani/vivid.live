@@ -4,9 +4,11 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Film, User, Mail, Lock, Zap, ChevronDown } from 'lucide-react';
+import { useAuth } from '@/components/FirebaseProvider';
 
 export default function SignupPage() {
   const router = useRouter();
+  const { signupWithEmail } = useAuth();
   const [fullName, setFullName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -24,22 +26,20 @@ export default function SignupPage() {
     setError('');
     
     try {
-      const body = JSON.stringify({ fullName, email, password });
-
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
-
-      if (res.ok) {
-        router.push('/setup');
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Signup failed');
-      }
+      await signupWithEmail(email, password, fullName);
+      router.push('/setup');
     } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+      let message = err.message || 'An error occurred. Please try again.';
+      if (err.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered. Please log in instead.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        message = 'Email/Password signup is currently disabled. Please use Google Login.';
+      } else if (err.code === 'auth/weak-password') {
+        message = 'Password is too weak. Please use at least 6 characters.';
+      } else if (err.code === 'auth/invalid-email') {
+        message = 'Please enter a valid email address.';
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }

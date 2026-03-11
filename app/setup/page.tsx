@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BrainCircuit, Lightbulb, Terminal, CheckCircle2, Mic, Volume2, AudioLines, Zap, Save, MessageSquare, Sparkles, Film, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI, Modality } from "@google/genai";
+import { useAuth } from '@/components/FirebaseProvider';
 
 const ARCHETYPES = [
   {
@@ -41,6 +42,7 @@ const ARCHETYPES = [
 
 export default function SetupPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [archetype, setArchetype] = React.useState('mentor');
   const [tone, setTone] = React.useState(70);
   const [noiseCancellation, setNoiseCancellation] = React.useState(true);
@@ -190,12 +192,13 @@ export default function SetupPage() {
   };
 
   const handleSave = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
       const res = await fetch('/api/user/agent-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archetype, tone, noiseCancellation }),
+        body: JSON.stringify({ archetype, tone, noiseCancellation, userId: user.uid }),
       });
 
       if (res.ok) {

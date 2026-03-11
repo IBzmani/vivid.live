@@ -4,9 +4,11 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Film, Mail, Lock, EyeOff, Eye } from 'lucide-react';
+import { useAuth } from '@/components/FirebaseProvider';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { loginWithEmail, login: loginWithGoogle } = useAuth();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
@@ -43,22 +45,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const body = JSON.stringify({ email, password });
-
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
-
-      if (res.ok) {
-        router.push('/dashboard');
-      } else {
-        const data = await res.json();
-        setError(data.error || 'Login failed');
-      }
+      await loginWithEmail(email, password);
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+      let message = err.message || 'An error occurred. Please try again.';
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        message = 'Invalid email or password. Please check your credentials.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        message = 'Email/Password login is currently disabled. Please use Google Login.';
+      } else if (err.code === 'auth/too-many-requests') {
+        message = 'Too many failed attempts. Please try again later or reset your password.';
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -66,26 +64,10 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const res = await fetch('/api/auth/google/url');
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to get auth URL');
-      }
-      const { url } = await res.json();
-      
-      const authWindow = window.open(
-        url,
-        'oauth_popup',
-        'width=600,height=700'
-      );
-
-      if (!authWindow) {
-        alert('Please allow popups for this site to connect your account.');
-      }
+      await loginWithGoogle();
+      router.push('/dashboard');
     } catch (err: any) {
-      // Avoid logging the error object directly as it might contain circular references (e.g. DOM events)
-      // which can cause "Converting circular structure to JSON" errors in some environments.
-      console.error('OAuth error:', err instanceof Error ? err.message : 'Unknown error');
+      console.error('Google login error:', err.message);
       setError(err.message || 'Failed to initialize Google login.');
     }
   };

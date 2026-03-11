@@ -1,23 +1,17 @@
 import { NextResponse } from 'next/server';
-import { saveAgentSettings } from '@/lib/db';
-import { cookies } from 'next/headers';
+import { db } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { archetype, tone, noiseCancellation } = body;
+    const { archetype, tone, noiseCancellation, userId } = body;
     
-    const cookieStore = await cookies();
-    const authToken = cookieStore.get('auth_token')?.value;
-    
-    if (!authToken) {
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Extract userId from token (format: token_ID)
-    const userId = authToken.startsWith('token_') ? authToken.replace('token_', '') : authToken; 
-
-    await saveAgentSettings(userId, {
+    await setDoc(doc(db, 'users', userId, 'settings', 'agent'), {
       archetype,
       tone,
       noiseCancellation,

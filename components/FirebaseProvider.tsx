@@ -1,7 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  User, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile
+} from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Film, Sparkles, LogIn, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +19,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -33,6 +44,26 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error("Login failed:", error);
+      throw error;
+    }
+  };
+
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Email login failed:", error);
+      throw error;
+    }
+  };
+
+  const signupWithEmail = async (email: string, password: string, fullName: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName: fullName });
+    } catch (error) {
+      console.error("Email signup failed:", error);
+      throw error;
     }
   };
 
@@ -41,6 +72,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       await signOut(auth);
     } catch (error) {
       console.error("Logout failed:", error);
+      throw error;
     }
   };
 
@@ -53,7 +85,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
+  // Only show the landing page if we are NOT on the login or signup pages
+  // This allows the custom login/signup pages to render their own UI
+  const isAuthPage = typeof window !== 'undefined' && (window.location.pathname === '/login' || window.location.pathname === '/signup');
+
+  if (!user && !isAuthPage) {
     return (
       <div className="min-h-screen bg-obsidian flex flex-col items-center justify-center p-6 relative overflow-hidden">
         <div className="film-grain"></div>
@@ -87,6 +123,12 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
               <LogIn className="size-5" />
               Connect with Google
             </button>
+
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <a href="/login" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-primary transition-colors">Log In</a>
+              <div className="size-1 rounded-full bg-slate-800"></div>
+              <a href="/signup" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-primary transition-colors">Sign Up</a>
+            </div>
             
             <p className="mt-6 text-[10px] text-slate-500 leading-relaxed">
               By connecting, you agree to our Terms of Service and Privacy Policy. Your cinematic data is encrypted and stored securely on Google Cloud.
@@ -98,7 +140,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithEmail, signupWithEmail, logout }}>
       {children}
     </AuthContext.Provider>
   );
