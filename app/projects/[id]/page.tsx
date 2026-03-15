@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCw, Zap, Loader2, ArrowLeft } from 'lucide-react';
+import { RotateCw, Loader2, ArrowLeft } from 'lucide-react';
+
 import { 
   doc, 
   onSnapshot, 
@@ -47,19 +48,7 @@ export default function ProjectPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
-  const [hasApiKey, setHasApiKey] = useState<boolean>(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-
-  // Check for API Key on mount
-  useEffect(() => {
-    const checkApiKey = async () => {
-      if ((window as any).aistudio?.hasSelectedApiKey) {
-        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-      }
-    };
-    checkApiKey();
-  }, []);
 
   // Firestore Retry Helper
   const withFirestoreRetry = async <T extends unknown>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
@@ -466,13 +455,6 @@ export default function ProjectPage() {
     }
   };
 
-  const handleSelectKey = async () => {
-    if ((window as any).aistudio?.openSelectKey) {
-      await (window as any).aistudio.openSelectKey();
-      // Assume success after opening dialog
-      setHasApiKey(true);
-    }
-  };
 
   const handleExportMovie = async () => {
     if (isExporting) return;
@@ -575,48 +557,7 @@ export default function ProjectPage() {
         <ArrowLeft className="size-5 text-slate-400 group-hover:text-white" />
       </button>
       
-      <AnimatePresence>
-        {!hasApiKey && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-obsidian/95 backdrop-blur-xl z-[200] flex flex-col items-center justify-center p-6 text-center"
-          >
-            <div className="max-w-md space-y-6">
-              <div className="size-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="size-10 text-primary" />
-              </div>
-              <h2 className="text-3xl font-bold tracking-tight text-white">Premium Models Active</h2>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                You are now using high-performance models. To continue, please select a billing-enabled API key from your Google Cloud project.
-              </p>
-              <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-left">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Requirements:</p>
-                <ul className="text-xs text-slate-300 space-y-2">
-                  <li className="flex items-start gap-2">
-                    <div className="size-1.5 rounded-full bg-primary mt-1 shrink-0" />
-                    <span>Must be from a paid Google Cloud project.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <div className="size-1.5 rounded-full bg-primary mt-1 shrink-0" />
-                    <span>Billing must be enabled on the project.</span>
-                  </li>
-                </ul>
-              </div>
-              <button 
-                onClick={handleSelectKey}
-                className="w-full bg-primary text-obsidian py-4 rounded-xl font-black uppercase tracking-widest hover:scale-[1.02] transition-transform active:scale-[0.98] shadow-[0_0_30px_rgba(236,182,19,0.2)]"
-              >
-                Select API Key
-              </button>
-              <p className="text-[10px] text-slate-500">
-                Learn more about <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Gemini API Billing</a>.
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       <AnimatePresence>
         {isExporting && (
