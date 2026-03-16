@@ -4,7 +4,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'vivid-488415',
-  location: 'us-central1',
+  location: 'global',
+  apiVersion: 'v1beta1'
 });
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const result = await withRetry(async () => {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-flash-lite-preview',
         contents: `As a Film Director specialized in ${genre} cinema, partition the ENTIRE provided script into a sequence of storyboard frames.
         
 RULES:

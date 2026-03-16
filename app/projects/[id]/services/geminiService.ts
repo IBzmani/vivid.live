@@ -5,16 +5,24 @@
 import { VisualManifest, Genre, VoiceName } from '../types';
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `${path} failed with status ${res.status}`);
+  console.log(`[geminiService] POST ${path}`, body);
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    console.log(`[geminiService] Response from ${path}: ${res.status}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      console.error(`[geminiService] Error from ${path}:`, err);
+      throw new Error(err.error || `${path} failed with status ${res.status}`);
+    }
+    return res.json();
+  } catch (error) {
+    console.error(`[geminiService] Fetch failed for ${path}:`, error);
+    throw error;
   }
-  return res.json();
 }
 
 /**

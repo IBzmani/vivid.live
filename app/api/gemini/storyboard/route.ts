@@ -7,7 +7,8 @@ export const maxDuration = 300;
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'vivid-488415',
-  location: 'us-central1',
+  location: 'global', 
+  apiVersion: 'v1beta1'
 });
 
 const STYLE_GUIDE =
@@ -42,14 +43,6 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
   throw new Error('Max retries reached');
 }
 
-/**
- * Parses the interleaved response parts array from Gemini.
- * The model alternates between JSON text (frame metadata) and image inline data.
- *
- * Expected pattern per frame:
- *   parts[N]   → text: raw JSON object string
- *   parts[N+1] → inlineData: image bytes
- */
 function parseInterleavedParts(parts: any[]): Array<{
   title: string;
   scriptSegment: string;
@@ -64,18 +57,16 @@ function parseInterleavedParts(parts: any[]): Array<{
 
   for (const part of parts) {
     if (part.text) {
-      // Try to extract a JSON object from the text part
       const trimmed = part.text.trim();
       const jsonMatch = trimmed.match(/\{[\s\S]*?\}/);
       if (jsonMatch) {
         try {
           pendingMeta = JSON.parse(jsonMatch[0]);
         } catch {
-          // Not valid JSON — could be preamble text, skip
+          // Skip non-JSON text
         }
       }
     } else if (part.inlineData) {
-      // Pair this image with the most recent pending metadata
       if (pendingMeta) {
         frames.push({
           title: pendingMeta.title || `Frame ${frames.length + 1}`,
@@ -94,7 +85,6 @@ function parseInterleavedParts(parts: any[]): Array<{
       }
     }
   }
-
   return frames;
 }
 
@@ -109,30 +99,36 @@ export async function POST(req: NextRequest) {
       .map((e: any) => `${e.name} (ID: ${e.id})`)
       .join(', ');
 
-    const prompt = `You are a Film Director creating a complete storyboard for a ${genre} film.
+    // Atmosphere-First: We lead with Style and Formatting Rules
+    const prompt = `${STYLE_GUIDE}
+You are a Film Director creating a complete storyboard for a ${genre} film. 
+All images must be 16:9 aspect ratio.
 
-For EACH storyboard frame, output EXACTLY in this order — no extra text before or between:
-1. A single-line raw JSON object (no markdown, no code fences) with these fields:
+For EACH storyboard frame, output EXACTLY in this order:
+1. A single-line raw JSON object with these fields:
    {"title":"...","scriptSegment":"...","shotType":"...","characterId":"...","environmentId":"...","directorsBrief":{"emotionalArc":"...","lightingScheme":"...","cameraLogic":"..."}}
-2. Immediately followed by the cinematic storyboard image for that frame. ${STYLE_GUIDE} 16:9 aspect ratio.
+2. Immediately followed by the cinematic storyboard image for that frame.
 
-Available Characters (use their IDs in characterId): ${charList || 'none'}
-Available Environments (use their IDs in environmentId): ${envList || 'none'}
+Available Characters (IDs): ${charList || 'none'}
+Available Environments (IDs): ${envList || 'none'}
 
 RULES:
-- The "scriptSegment" must be verbatim text from the script.
-- Use cinematic shot types: ECU, CU, MCU, MS, MLS, LS, ELS, OTS, POV, Dutch Angle.
-- Use emotional performance tags in scriptSegment: [e.g., terrified whisper], [deadpan sarcasm].
-- Output ALL frames covering the ENTIRE script. Do not truncate.
-- ONLY output JSON lines and images. No other text whatsoever.
-
-Genre: ${genre}
-Script: ${script}`;
+- JSON first, then Image. No markdown code blocks.
+- "scriptSegment" must be verbatim.
+- Shot types: ECU, CU, MCU, MS, MLS, LS, ELS, OTS, POV, Dutch Angle.
+- Genre: ${genre}
+- Script: ${script}`;
 
     const result = await withRetry(async () => {
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-flash-image-preview',
-        contents: [{ parts: [{ text: prompt }] }],
+        // FIX: Structural role requirement for 3.1
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }]
+          }
+        ],
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
           imageConfig: { aspectRatio: '16:9' },
@@ -147,7 +143,10 @@ Script: ${script}`;
 
     return NextResponse.json(result);
   } catch (err: any) {
-    console.error('[/api/gemini/storyboard]', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[/api/gemini/storyboard] Error:', err);
+    return NextResponse.json({ 
+      error: err.message,
+      details: err.response?.error || null 
+    }, { status: 500 });
   }
 }
