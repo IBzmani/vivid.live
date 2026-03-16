@@ -4,7 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'vivid-488415',
-  location: 'africa-south1',
+  location: 'us-central1',
 });
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     const result = await withRetry(async () => {
       const chat = ai.chats.create({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         config: { systemInstruction },
         history,
       });

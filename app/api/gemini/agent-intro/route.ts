@@ -4,7 +4,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'vivid-488415',
-  location: 'africa-south1',
+  location: 'us-central1',
 });
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     // 1. Generate the intro text
     const textResponse = await withRetry(() =>
       ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         contents: `You are a creative AI agent with the archetype: ${archetypeName}. ${archetypeDescription}. 
         Briefly introduce yourself to your new partner (the user) in 2 short sentences. 
         Stay in character.`,

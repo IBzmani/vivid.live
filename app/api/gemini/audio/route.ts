@@ -4,7 +4,7 @@ import { GoogleGenAI, Modality } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'vivid-488415',
-  location: 'africa-south1',
+  location: 'us-central1',
 });
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {

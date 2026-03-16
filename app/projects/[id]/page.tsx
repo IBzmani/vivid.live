@@ -33,6 +33,7 @@ import {
   generateNanoBananaImage, 
   generateEmotionalAudio, 
   generateBibleAsset,
+  generateStoryboard,
   chatWithCoCreator
 } from './services/geminiService';
 import { exportCinemaMovie } from './services/exportService';
@@ -308,47 +309,68 @@ export default function ProjectPage() {
     return getDocs(collection(db, path));
   };
 
+  /**
+   * Silently generates audio for every frame in the background after storyboard
+   * creation. Runs sequentially to respect TTS rate limits. Saves audioData to
+   * Firestore as each frame completes — no user click needed.
+   */
+  const autoGenerateAudio = async (frames: { id: string; scriptSegment: string; directorsBrief?: any }[]) => {
+    for (const frame of frames) {
+      if (!frame.scriptSegment) continue;
+      try {
+        const audio = await generateEmotionalAudio(
+          frame.scriptSegment,
+          frame.directorsBrief?.emotionalArc || 'Dramatic',
+          scene.genre,
+          scene.voice,
+          scene.language
+        );
+        if (audio) {
+          await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { audioData: audio });
+        }
+      } catch (err) {
+        console.warn(`Auto-audio failed for frame ${frame.id}:`, err);
+        // Non-fatal — user can still click to generate on demand
+      }
+    }
+  };
+
   const handleGenerateStoryboard = async () => {
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      const data = await generateSceneWithBrief(scene.script, scene.manifest, scene.genre);
-      
+      // ── Interleaved call: one request returns frames WITH images ──────────
+      const data = await generateStoryboard(scene.script, scene.manifest, scene.genre);
+
       // Clear old frames
       const frameSnaps = await snapCollection(`projects/${projectId}/frames`);
       await Promise.all(frameSnaps.docs.map(d => deleteDoc(d.ref)));
 
-      const newFrames = data.frames.map((f: any, i: number) => ({
+      const newFrames = (data.frames || []).map((f: any, i: number) => ({
         ...f,
         id: `f-${i}-${Date.now()}`,
-        timeRange: `00:0${i*5} - 00:0${(i+1)*5}`,
-        image: 'https://placehold.co/1280x720/1a1a1a/ecb613?text=Composing+Shot...',
-        order: i
+        // imageUrl from interleaved response becomes image
+        image: f.imageUrl || 'https://placehold.co/1280x720/333/fff?text=No+Image',
+        timeRange: `00:0${i * 5} - 00:0${(i + 1) * 5}`,
+        order: i,
       }));
 
-      for (let frame of newFrames) {
-        await setDoc(doc(db, 'projects', projectId, 'frames', frame.id), frame);
+      // Persist all frames (already have images — no second image loop needed)
+      for (const frame of newFrames) {
+        const { imageUrl: _drop, ...frameData } = frame; // imageUrl stored as image
+        await setDoc(doc(db, 'projects', projectId, 'frames', frame.id), frameData);
       }
-      
+
       if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
-      
-      // Sequential image generation
-      for (let frame of newFrames) {
-        try {
-          const url = await generateNanoBananaImage(frame.prompt, scene.manifest, { 
-            charId: frame.characterId, 
-            envId: frame.environmentId, 
-            shotType: frame.shotType, 
-            emotion: frame.directorsBrief?.emotionalArc 
-          });
-          if (url) {
-            await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { image: url });
-          }
-        } catch (err) {
-          await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { image: 'https://placehold.co/1280x720/333/fff?text=Error' });
-        }
-      }
-    } finally { setIsGenerating(false); }
+
+      // ── Auto-audio: fire-and-forget background synthesis ──────────────────
+      autoGenerateAudio(newFrames).catch(err => console.error('Auto-audio pipeline error:', err));
+
+    } catch (err) {
+      console.error('Storyboard generation failed:', err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handlePaintToEdit = async (frameId: string, instruction: string, coord?: { x: number, y: number }) => {
@@ -381,16 +403,18 @@ export default function ProjectPage() {
     const frame = scene.frames.find(f => f.id === frameId);
     if (!frame?.scriptSegment) return;
 
+    // If auto-audio already populated this frame, play immediately
     if (frame.audioData) {
       playAudio(frame.audioData, scene.playbackRate);
       return;
     }
 
+    // Fallback: generate on demand (e.g. auto-audio failed or timed out)
     try {
       setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
       const audio = await generateEmotionalAudio(
-        frame.scriptSegment, 
-        frame.directorsBrief?.emotionalArc || "Dramatic", 
+        frame.scriptSegment,
+        frame.directorsBrief?.emotionalArc || 'Dramatic',
         scene.genre,
         scene.voice,
         scene.language
@@ -400,7 +424,7 @@ export default function ProjectPage() {
         playAudio(audio, scene.playbackRate);
       }
     } catch (err) {
-      console.error("Audio synthesis failed", err);
+      console.error('Audio synthesis failed', err);
     } finally {
       setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) }));
     }

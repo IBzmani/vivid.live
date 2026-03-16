@@ -64,6 +64,28 @@ export const generateSceneWithBrief = async (
   return post<any>('/api/gemini/scene', { script, manifest, genre });
 };
 
+/** 
+ * Interleaved storyboard generation — one API call returns frames with
+ * both metadata (text) and images already synthesised, interleaved in the
+ * model response. Replaces the separate scene + per-frame image calls.
+ */
+export const generateStoryboard = async (
+  script: string,
+  manifest: VisualManifest,
+  genre: Genre
+): Promise<{ frames: Array<{
+  title: string;
+  scriptSegment: string;
+  shotType: string;
+  characterId: string;
+  environmentId: string;
+  directorsBrief: { emotionalArc: string; lightingScheme: string; cameraLogic: string };
+  imageUrl: string;
+}> }> => {
+  return post('/api/gemini/storyboard', { script, manifest, genre });
+};
+
+
 export const generateNanoBananaImage = async (
   prompt: string,
   manifest: VisualManifest,

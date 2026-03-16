@@ -4,7 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({
   vertexai: true,
   project: 'vivid-488415',
-  location: 'africa-south1',
+  location: 'us-central1',
 });
 
 const STYLE_GUIDE = 'Aesthetic: High-fidelity cinematic concept art. Professional cinematography, realistic volumetric lighting, deep shadows, sharp digital painting. 8k resolution look.';
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     const result = await withRetry(async () => {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-preview-image-generation',
+        model: 'gemini-3.1-flash-image-preview',
         contents: { parts },
         config: {
           responseModalities: ['TEXT', 'IMAGE'],
