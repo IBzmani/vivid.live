@@ -161,19 +161,52 @@ export default function ProjectPage() {
   };
 
   const addCharacter = async (name: string, description: string, imageUrl?: string) => {
+    console.log(`[Page] addCharacter: ${name}`);
     const id = `c-${Date.now()}`;
     const charData = { name, role: "Principal", description, image: imageUrl || 'loading://character' };
     
     try {
-      await withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'characters', id), charData));
-      if (imageUrl) return;
+      // Start both operations. If setDoc hangs, the API call should still proceed in the network tab if we don't await it too early.
+      console.log(`[Page] Writing character ${id} to Firestore...`);
+      const firestorePromise = withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'characters', id), charData));
       
-      const img = await generateBibleAsset(name, description, 'character');
+      if (imageUrl) {
+        await firestorePromise;
+        return;
+      }
+      
+      console.log(`[Page] Triggering image synthesis for ${name}...`);
+      const apiPromise = generateBibleAsset(name, description, 'character');
+      
+      // We await both to ensure consistency but even if Firestore is slow, the API call should have been SENT by now.
+      const [img] = await Promise.all([apiPromise, firestorePromise]);
+      
       if (img) {
-        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { image: img }));
+        console.log(`[Page] Synthesis successful, updating character ${id} in Firestore...`);
+        try {
+          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { image: img }));
+        } catch (writeErr) {
+          console.error(`[Page] Failed to write compressed image to Firestore for ${id}:`, writeErr);
+          // Fallback: use a placeholder if the compressed image still fails
+          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { 
+            image: "https://placehold.co/1024x1024/333/fff?text=Synthesis+Limit+Exceeded" 
+          }));
+        }
+      } else {
+        // No image returned from API
+        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { 
+          image: "https://placehold.co/1024x1024/333/fff?text=No+Image+Generated" 
+        }));
       }
     } catch (err) {
-      handleFirestoreError(err, 'write', `projects/${projectId}/characters/${id}`);
+      console.error(`[Page] addCharacter failed:`, err);
+      // Ensure we don't leave it in loading state if possible
+      try {
+        await updateDoc(doc(db, 'projects', projectId, 'characters', id), { 
+          image: "https://placehold.co/1024x1024/333/fff?text=Error" 
+        });
+      } catch {}
+      handleFirestoreError(err, 'write/synthesize', `projects/${projectId}/characters/${id}`);
     }
   };
 
@@ -195,7 +228,14 @@ export default function ProjectPage() {
         }));
         const img = await generateBibleAsset(name, description, 'character');
         if (img) {
-          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: img }));
+          try {
+            await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: img }));
+          } catch (writeErr) {
+            console.error(`[Page] updateCharacter write error:`, writeErr);
+            await updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: "https://placehold.co/1024x1024/333/fff?text=Error" });
+          }
+        } else {
+          await updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: "https://placehold.co/1024x1024/333/fff?text=No+Image" });
         }
       } catch (err) {
         handleFirestoreError(err, 'update', `projects/${projectId}/characters/${existing.id}`);
@@ -206,19 +246,47 @@ export default function ProjectPage() {
   };
 
   const addEnvironment = async (name: string, description: string, imageUrl?: string) => {
+    console.log(`[Page] addEnvironment: ${name}`);
     const id = `e-${Date.now()}`;
     const envData = { name, mood: "Concept", colors: ['#555'], image: imageUrl || 'loading://environment' };
     
     try {
-      await withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'environments', id), envData));
-      if (imageUrl) return;
+      console.log(`[Page] Writing environment ${id} to Firestore...`);
+      const firestorePromise = withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'environments', id), envData));
       
-      const img = await generateBibleAsset(name, description, 'environment');
+      if (imageUrl) {
+        await firestorePromise;
+        return;
+      }
+      
+      console.log(`[Page] Triggering environment synthesis for ${name}...`);
+      const apiPromise = generateBibleAsset(name, description, 'environment');
+      
+      const [img] = await Promise.all([apiPromise, firestorePromise]);
+      
       if (img) {
-        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { image: img }));
+        console.log(`[Page] Synthesis successful, updating environment ${id} in Firestore...`);
+        try {
+          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { image: img }));
+        } catch (writeErr) {
+          console.error(`[Page] Failed to write compressed image to Firestore for ${id}:`, writeErr);
+          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { 
+            image: "https://placehold.co/1280x720/333/fff?text=Synthesis+Limit+Exceeded" 
+          }));
+        }
+      } else {
+        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { 
+          image: "https://placehold.co/1280x720/333/fff?text=No+Image+Generated" 
+        }));
       }
     } catch (err) {
-      handleFirestoreError(err, 'write', `projects/${projectId}/environments/${id}`);
+      console.error(`[Page] addEnvironment failed:`, err);
+      try {
+        await updateDoc(doc(db, 'projects', projectId, 'environments', id), { 
+          image: "https://placehold.co/1280x720/333/fff?text=Error" 
+        });
+      } catch {}
+      handleFirestoreError(err, 'write/synthesize', `projects/${projectId}/environments/${id}`);
     }
   };
 
@@ -240,7 +308,14 @@ export default function ProjectPage() {
         }));
         const img = await generateBibleAsset(name, description, 'environment');
         if (img) {
-          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: img }));
+          try {
+            await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: img }));
+          } catch (writeErr) {
+            console.error(`[Page] updateEnvironment write error:`, writeErr);
+            await updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: "https://placehold.co/1280x720/333/fff?text=Error" });
+          }
+        } else {
+          await updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: "https://placehold.co/1280x720/333/fff?text=No+Image" });
         }
       } catch (err) {
         handleFirestoreError(err, 'update', `projects/${projectId}/environments/${existing.id}`);

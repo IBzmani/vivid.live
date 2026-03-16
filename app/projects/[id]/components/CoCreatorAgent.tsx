@@ -117,6 +117,7 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
+    console.log(`[CoCreatorAgent] Sending message: ${userMessage}`);
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
     setIsLoading(true);
@@ -128,15 +129,17 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
       }));
 
       const response = await chatWithCoCreator(userMessage, history, { script, manifest, genre });
+      console.log(`[CoCreatorAgent] Received response:`, response);
       
       if (response) {
         const suggestions = processCommands(response);
+        console.log(`[CoCreatorAgent] Processed suggestions:`, suggestions);
         setMessages(prev => [...prev, { role: 'model', text: response, suggestions }]);
       } else {
         setMessages(prev => [...prev, { role: 'model', text: "I'm sorry, I couldn't generate a response. Please try again." }]);
       }
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error("[CoCreatorAgent] Chat error:", error);
       setMessages(prev => [...prev, { role: 'model', text: "I'm sorry, I encountered an error. Let's try again." }]);
     } finally {
       setIsLoading(false);
@@ -205,6 +208,7 @@ const CoCreatorAgent: React.FC<CoCreatorAgentProps> = ({
   };
 
   const approveSuggestion = (suggestion: Suggestion) => {
+    console.log(`[CoCreatorAgent] Approving suggestion:`, suggestion);
     if (suggestion.type === 'script') {
       onUpdateScript(suggestion.content);
     } else if (suggestion.type === 'character') {
