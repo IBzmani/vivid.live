@@ -60,18 +60,36 @@ ${text}`.trim();
     const result = await withRetry(async () => {
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text: performancePrompt }] }],
+        // FIX: Added the mandatory role: 'user' wrapper
+        contents: [
+          {
+            role: 'user', 
+            parts: [{ text: performancePrompt }]
+          }
+        ],
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+          speechConfig: { 
+            voiceConfig: { 
+              prebuiltVoiceConfig: { 
+                voiceName: voiceName // Ensure this variable is used correctly
+              } 
+            } 
+          }
         },
       });
-      return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data ?? null;
+
+      // Navigate carefully to the audio data
+      const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      return part?.inlineData?.data ?? null;
     });
 
     return NextResponse.json({ audioData: result });
   } catch (err: any) {
-    console.error('[/api/gemini/audio]', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[/api/gemini/audio] Full Error:', err);
+    return NextResponse.json({ 
+      error: err.message,
+      details: err.response?.error || 'TTS Synthesis Failed'
+    }, { status: 500 });
   }
 }
