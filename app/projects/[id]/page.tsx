@@ -50,6 +50,7 @@ export default function ProjectPage() {
   const [exportProgress, setExportProgress] = useState(0);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [synthImages, setSynthImages] = useState<Record<string, string>>({});
 
   // Firestore Retry Helper
   const withFirestoreRetry = async <T extends unknown>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
@@ -148,6 +149,26 @@ export default function ProjectPage() {
     };
   }, [user, projectId]);
 
+  // Merge manifest with synthesized images that aren't persisted to Firestore yet
+  const mergedManifest = React.useMemo(() => {
+    const merged = {
+      characters: scene.manifest.characters.map(c => ({ 
+        ...c, 
+        image: synthImages[c.id] || c.image 
+      })),
+      environments: scene.manifest.environments.map(e => ({ 
+        ...e, 
+        image: synthImages[e.id] || e.image 
+      }))
+    };
+    console.log('[Page] mergedManifest updated:', {
+      charCount: merged.characters.length,
+      envCount: merged.environments.length,
+      synths: Object.keys(synthImages)
+    });
+    return merged;
+  }, [scene.manifest, synthImages]);
+
   const updateProjectField = async (field: string, value: any) => {
     if (!projectId) return;
     try {
@@ -162,9 +183,21 @@ export default function ProjectPage() {
 
   const addCharacter = async (name: string, description: string, imageUrl?: string) => {
     console.log(`[Page] addCharacter: ${name}`);
-    const id = `c-${Date.now()}`;
+    const id = `char_${crypto.randomUUID()}`;
     const charData = { name, role: "Principal", description, image: imageUrl || 'loading://character' };
     
+    // Optimistic Update: Add to local state immediately
+    setScene(prev => ({
+      ...prev,
+      manifest: {
+        ...prev.manifest,
+        characters: [...prev.manifest.characters, { ...charData, id }]
+      }
+    }));
+
+    if (imageUrl) {
+      setSynthImages(prev => ({ ...prev, [id]: imageUrl }));
+    }
     try {
       // Start both operations. If setDoc hangs, the API call should still proceed in the network tab if we don't await it too early.
       console.log(`[Page] Writing character ${id} to Firestore...`);
@@ -178,29 +211,20 @@ export default function ProjectPage() {
       console.log(`[Page] Triggering image synthesis for ${name}...`);
       const apiPromise = generateBibleAsset(name, description, 'character');
       
-      // We await both to ensure consistency but even if Firestore is slow, the API call should have been SENT by now.
-      const [img] = await Promise.all([apiPromise, firestorePromise]);
-      
-      if (img) {
-        console.log(`[Page] Synthesis successful, updating character ${id} in Firestore...`);
-        try {
-          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { image: img }));
-        } catch (writeErr) {
-          console.error(`[Page] Failed to write compressed image to Firestore for ${id}:`, writeErr);
-          // Fallback: use a placeholder if the compressed image still fails
-          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { 
-            image: "https://placehold.co/1024x1024/333/fff?text=Synthesis+Limit+Exceeded" 
-          }));
+      // DECOUPLE: Update local state as soon as the API returns, don't wait for Firestore
+      apiPromise.then(img => {
+        if (img) {
+          console.log(`[Page] Synthesis successful for ${id}, updating synthImages`);
+          setSynthImages(prev => ({ ...prev, [id]: img }));
         }
-      } else {
-        // No image returned from API
-        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', id), { 
-          image: "https://placehold.co/1024x1024/333/fff?text=No+Image+Generated" 
-        }));
-      }
+      }).catch(err => console.error(`[Page] Synthesis failed for ${id}:`, err));
+
+      console.log(`[Page] Writing character ${id} to Firestore...`);
+      await firestorePromise;
+      
     } catch (err) {
       console.error(`[Page] addCharacter failed:`, err);
-      // Ensure we don't leave it in loading state if possible
+      // Ensure we don't leave it in loading state in Firestore if possible
       try {
         await updateDoc(doc(db, 'projects', projectId, 'characters', id), { 
           image: "https://placehold.co/1024x1024/333/fff?text=Error" 
@@ -228,12 +252,8 @@ export default function ProjectPage() {
         }));
         const img = await generateBibleAsset(name, description, 'character');
         if (img) {
-          try {
-            await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: img }));
-          } catch (writeErr) {
-            console.error(`[Page] updateCharacter write error:`, writeErr);
-            await updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: "https://placehold.co/1024x1024/333/fff?text=Error" });
-          }
+          console.log(`[Page] Update successful, showing image locally...`);
+          setSynthImages(prev => ({ ...prev, [existing.id]: img }));
         } else {
           await updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: "https://placehold.co/1024x1024/333/fff?text=No+Image" });
         }
@@ -250,6 +270,18 @@ export default function ProjectPage() {
     const id = `e-${Date.now()}`;
     const envData = { name, mood: "Concept", colors: ['#555'], image: imageUrl || 'loading://environment' };
     
+    // Optimistic Update: Add to local state immediately
+    setScene(prev => ({
+      ...prev,
+      manifest: {
+        ...prev.manifest,
+        environments: [...prev.manifest.environments, { ...envData, id }]
+      }
+    }));
+
+    if (imageUrl) {
+      setSynthImages(prev => ({ ...prev, [id]: imageUrl }));
+    }
     try {
       console.log(`[Page] Writing environment ${id} to Firestore...`);
       const firestorePromise = withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'environments', id), envData));
@@ -262,23 +294,17 @@ export default function ProjectPage() {
       console.log(`[Page] Triggering environment synthesis for ${name}...`);
       const apiPromise = generateBibleAsset(name, description, 'environment');
       
-      const [img] = await Promise.all([apiPromise, firestorePromise]);
-      
-      if (img) {
-        console.log(`[Page] Synthesis successful, updating environment ${id} in Firestore...`);
-        try {
-          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { image: img }));
-        } catch (writeErr) {
-          console.error(`[Page] Failed to write compressed image to Firestore for ${id}:`, writeErr);
-          await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { 
-            image: "https://placehold.co/1280x720/333/fff?text=Synthesis+Limit+Exceeded" 
-          }));
+      // DECOUPLE: Update local state immediately upon API resolution
+      apiPromise.then(img => {
+        if (img) {
+          console.log(`[Page] Env synthesis successful for ${id}, updating synthImages`);
+          setSynthImages(prev => ({ ...prev, [id]: img }));
         }
-      } else {
-        await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', id), { 
-          image: "https://placehold.co/1280x720/333/fff?text=No+Image+Generated" 
-        }));
-      }
+      }).catch(err => console.error(`[Page] Env synthesis failed for ${id}:`, err));
+
+      console.log(`[Page] Writing environment ${id} to Firestore...`);
+      await firestorePromise;
+
     } catch (err) {
       console.error(`[Page] addEnvironment failed:`, err);
       try {
@@ -308,12 +334,8 @@ export default function ProjectPage() {
         }));
         const img = await generateBibleAsset(name, description, 'environment');
         if (img) {
-          try {
-            await withFirestoreRetry(() => updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: img }));
-          } catch (writeErr) {
-            console.error(`[Page] updateEnvironment write error:`, writeErr);
-            await updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: "https://placehold.co/1280x720/333/fff?text=Error" });
-          }
+          console.log(`[Page] Update successful, showing environment locally...`);
+          setSynthImages(prev => ({ ...prev, [existing.id]: img }));
         } else {
           await updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: "https://placehold.co/1280x720/333/fff?text=No+Image" });
         }
@@ -356,28 +378,30 @@ export default function ProjectPage() {
   };
 
   const handleManuscriptUpload = async (text: string) => {
-    setIsGenerating(true);
-    try {
-      const analysis = await analyzeManuscriptDeep(text);
-      await updateDoc(doc(db, 'projects', projectId), { script: text });
-      
-      // Clear old assets
-      const charSnaps = await snapCollection(`projects/${projectId}/characters`);
-      const envSnaps = await snapCollection(`projects/${projectId}/environments`);
-      await Promise.all([
-        ...charSnaps.docs.map(d => deleteDoc(d.ref)),
-        ...envSnaps.docs.map(d => deleteDoc(d.ref))
-      ]);
+  setIsGenerating(true);
+  try {
+    const analysis = await analyzeManuscriptDeep(text);
+    await updateDoc(doc(db, 'projects', projectId), { script: text });
+    
+    // Clear old assets
+    const charSnaps = await snapCollection(`projects/${projectId}/characters`);
+    const envSnaps = await snapCollection(`projects/${projectId}/environments`);
+    await Promise.all([
+      ...charSnaps.docs.map(d => deleteDoc(d.ref)),
+      ...envSnaps.docs.map(d => deleteDoc(d.ref))
+    ]);
 
-      // Add new ones
-      for (let char of (analysis.characters || [])) {
-        await addCharacter(char.name, char.description);
-      }
-      for (let env of (analysis.environments || [])) {
-        await addEnvironment(env.name, env.mood);
-      }
-    } finally { setIsGenerating(false); }
-  };
+    // Don't await these individual additions if you want them to pop in 
+    // as they finish. Trigger them and let the local state handle the rest.
+    analysis.characters?.forEach((char: any) => addCharacter(char.name, char.description));
+    analysis.environments?.forEach((env: any) => addEnvironment(env.name, env.mood));
+
+  } catch (err) {
+    console.error("Manuscript analysis failed:", err);
+  } finally {
+    setIsGenerating(false); 
+  }
+};
 
   const snapCollection = async (path: string) => {
     const { getDocs } = await import('firebase/firestore');
@@ -411,42 +435,65 @@ export default function ProjectPage() {
   };
 
   const handleGenerateStoryboard = async () => {
-    if (isGenerating) return;
-    setIsGenerating(true);
-    try {
-      // ── Interleaved call: one request returns frames WITH images ──────────
-      const data = await generateStoryboard(scene.script, scene.manifest, scene.genre);
+  if (isGenerating) return;
+  setIsGenerating(true);
+  try {
+    // 1. Get the JSON metadata (The logic)
+    const data = await generateStoryboard(scene.script, scene.manifest, scene.genre);
+    
+    // Clear old frames
+    const frameSnaps = await snapCollection(`projects/${projectId}/frames`);
+    await Promise.all(frameSnaps.docs.map(d => deleteDoc(d.ref)));
 
-      // Clear old frames
-      const frameSnaps = await snapCollection(`projects/${projectId}/frames`);
-      await Promise.all(frameSnaps.docs.map(d => deleteDoc(d.ref)));
+    // 2. Create the frames in Firestore with 'loading' state
+    const frameDataArray = (data.frames || []).map((f: any, i: number) => {
+      const id = `f-${i}-${Date.now()}`;
+      return { ...f, id, image: 'loading://storyboard', order: i };
+    });
 
-      const newFrames = (data.frames || []).map((f: any, i: number) => ({
-        ...f,
-        id: `f-${i}-${Date.now()}`,
-        // imageUrl from interleaved response becomes image
-        image: f.imageUrl || 'https://placehold.co/1280x720/333/fff?text=No+Image',
-        timeRange: `00:0${i * 5} - 00:0${(i + 1) * 5}`,
-        order: i,
-      }));
-
-      // Persist all frames (already have images — no second image loop needed)
-      for (const frame of newFrames) {
-        const { imageUrl: _drop, ...frameData } = frame; // imageUrl stored as image
-        await setDoc(doc(db, 'projects', projectId, 'frames', frame.id), frameData);
-      }
-
-      if (newFrames.length > 0) setSelectedFrameId(newFrames[0].id);
-
-      // ── Auto-audio: fire-and-forget background synthesis ──────────────────
-      autoGenerateAudio(newFrames).catch(err => console.error('Auto-audio pipeline error:', err));
-
-    } catch (err) {
-      console.error('Storyboard generation failed:', err);
-    } finally {
-      setIsGenerating(false);
+    for (const f of frameDataArray) {
+      await setDoc(doc(db, 'projects', projectId, 'frames', f.id), f);
     }
-  };
+
+    // 3. FAN OUT: Trigger high-fidelity synthesis in parallel
+frameDataArray.forEach(async (f) => {
+  try {
+    // We use the 'f.prompt' here—this is the detailed description 
+    // generated by the 3.1 Flash Lite architect.
+    const img = await generateNanoBananaImage(
+      f.prompt, 
+      scene.manifest, 
+      { 
+        charId: f.characterId, 
+        envId: f.environmentId, 
+        shotType: f.shotType, 
+        emotion: f.directorsBrief?.emotionalArc 
+      }
+    );
+
+    if (img) {
+      // Because onSnapshot is listening, the moment this hits Firestore,
+      // the VisionStage spinner for this specific frame will disappear
+      // and the cinematic art will appear.
+      await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { 
+        image: img 
+      });
+    }
+  } catch (e) {
+    console.error(`Frame ${f.id} synthesis failed:`, e);
+    // Fallback image so the user isn't stuck with a spinner forever
+    await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { 
+      image: 'https://placehold.co/1280x720/1a1a1a/666?text=Synthesis+Error' 
+    });
+  }
+});
+
+  } catch (err) {
+    console.error('Storyboard failed:', err);
+  } finally {
+    setIsGenerating(false);
+  }
+};
 
   const handlePaintToEdit = async (frameId: string, instruction: string, coord?: { x: number, y: number }) => {
     const target = scene.frames.find(f => f.id === frameId);
@@ -623,7 +670,7 @@ export default function ProjectPage() {
           onAppendFrame={appendFrame} 
         />
         <WorldBible 
-          manifest={scene.manifest} 
+          manifest={mergedManifest} 
           onAddChar={addCharacter} 
           onRemoveChar={removeCharacter} 
           onAddEnv={addEnvironment} 
@@ -640,7 +687,7 @@ export default function ProjectPage() {
       
         <CoCreatorAgent 
         script={scene.script}
-        manifest={scene.manifest}
+        manifest={mergedManifest}
         genre={scene.genre}
         onUpdateScript={(s) => updateProjectField('script', s)}
         onAddCharacter={addCharacter}
