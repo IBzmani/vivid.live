@@ -63,7 +63,8 @@ const WorldBible: React.FC<WorldBibleProps> = ({
   };
 
   const renderAssetImage = (imageUrl: string, alt: string, id: string, type: 'char' | 'env') => {
-    const isLoading = imageUrl.startsWith('loading://');
+    console.log(`[WorldBible] Rendering asset ${id}:`, { type, urlPrefix: imageUrl?.substring(0, 30) });
+    const isLoading = imageUrl?.startsWith('loading://');
     const isLinked = (type === 'char' && selectedFrameAssets.charId === id) || (type === 'env' && selectedFrameAssets.envId === id);
     
     if (isLoading) {
@@ -77,10 +78,12 @@ const WorldBible: React.FC<WorldBibleProps> = ({
 
     return (
       <>
-        <Image 
+        <Image
+          key={imageUrl}
           src={imageUrl} 
           alt={alt}
           fill
+          unoptimized
           className="object-cover transition-transform duration-700 group-hover:scale-110" 
           referrerPolicy="no-referrer"
         />

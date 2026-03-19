@@ -64,6 +64,7 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
                 src={frame.image} 
                 alt={frame.prompt} 
                 fill
+                unoptimized
                 className={`object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} 
                 referrerPolicy="no-referrer"
               />
