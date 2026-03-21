@@ -4,7 +4,6 @@
  */
 import { VisualManifest, Genre, VoiceName } from '../types';
 
-
 async function post<T>(path: string, body: unknown): Promise<T> {
   console.log(`[geminiService] POST ${path}`, body);
   try {
@@ -24,7 +23,6 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
     const data = await res.json();
     
-    // Robustness: Sometimes the model/API might return a JSON-stringified string
     if (typeof data === 'string') {
       try {
         return JSON.parse(data);
@@ -41,8 +39,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 /**
+ * NEW: Uploads a giant Base64 string to GCS and returns a tiny URL string.
+ * This prevents the "Property image is longer than 1048487 bytes" error.
+ */
+export async function uploadToGCS(base64: string, fileName: string): Promise<string> {
+  console.log(`[geminiService] Offloading large image to GCS: ${fileName}`);
+  const data = await post<{ url: string }>('/api/storage/upload', { base64, fileName });
+  return data.url;
+}
+
+/**
  * Converts a URL or data-URI to raw base64 + mimeType.
- * Runs in the browser before sending to the API route.
  */
 async function toBase64(url: string): Promise<{ data: string; mimeType: string }> {
   if (url.startsWith('data:')) {
@@ -71,6 +78,8 @@ export const generateBibleAsset = async (
   description: string,
   type: 'character' | 'environment'
 ): Promise<string | null> => {
+  // Ensure the server-side logic for bible-asset also uploads to GCS and returns a URL, 
+  // NOT a raw base64 string.
   const data = await post<{ imageUrl: string | null }>('/api/gemini/bible-asset', { name, description, type });
   return data.imageUrl;
 };
@@ -79,36 +88,14 @@ export const analyzeManuscriptDeep = async (manuscript: string) => {
   return post<any>('/api/gemini/analyze', { manuscript });
 };
 
-export const generateSceneWithBrief = async (
-  script: string,
-  manifest: VisualManifest,
-  genre: Genre
-) => {
-  return post<any>('/api/gemini/scene', { script, manifest, genre });
-};
-
-/** 
- * Interleaved storyboard generation — one API call returns frames with
- * both metadata (text) and images already synthesised, interleaved in the
- * model response. Replaces the separate scene + per-frame image calls.
- */
 export const generateStoryboard = async (
   script: string,
   manifest: VisualManifest,
   genre: Genre
-): Promise<{ frames: Array<{
-  title: string;
-  scriptSegment: string;
-  shotType: string;
-  characterId: string;
-  environmentId: string;
-  directorsBrief: { emotionalArc: string; lightingScheme: string; cameraLogic: string };
-  imageUrl: string;
-}> }> => {
+): Promise<{ frames: any[] }> => {
   const data = await post<{ frames: any[] }>('/api/gemini/storyboard', { script, manifest, genre });
   return data;
 };
-
 
 export const generateNanoBananaImage = async (
   prompt: string,
@@ -117,9 +104,9 @@ export const generateNanoBananaImage = async (
   baseImage?: string,
   clickCoord?: { x: number; y: number }
 ): Promise<string | null> => {
-  // Resolve base image to raw base64 on the client before sending
   let baseImageData: string | undefined;
   let baseImageMime: string | undefined;
+  
   if (baseImage) {
     const b64 = await toBase64(baseImage);
     baseImageData = b64.data || undefined;

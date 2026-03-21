@@ -29,12 +29,12 @@ import CoCreatorAgent from './components/CoCreatorAgent';
 
 import { 
   analyzeManuscriptDeep, 
-  generateSceneWithBrief, 
   generateNanoBananaImage, 
   generateEmotionalAudio, 
   generateBibleAsset,
   generateStoryboard,
-  chatWithCoCreator
+  chatWithCoCreator,
+  uploadToGCS
 } from './services/geminiService';
 import { exportCinemaMovie } from './services/exportService';
 
@@ -151,7 +151,7 @@ export default function ProjectPage() {
 
   // Merge manifest with synthesized images that aren't persisted to Firestore yet
   const mergedManifest = React.useMemo(() => {
-    const merged = {
+    return {
       characters: scene.manifest.characters.map(c => ({ 
         ...c, 
         image: synthImages[c.id] || c.image 
@@ -161,13 +161,14 @@ export default function ProjectPage() {
         image: synthImages[e.id] || e.image 
       }))
     };
-    console.log('[Page] mergedManifest updated:', {
-      charCount: merged.characters.length,
-      envCount: merged.environments.length,
-      synths: Object.keys(synthImages)
-    });
-    return merged;
   }, [scene.manifest, synthImages]);
+
+  const mergedFrames = React.useMemo(() => {
+    return scene.frames.map(f => ({
+      ...f,
+      image: synthImages[f.id] || f.image
+    }));
+  }, [scene.frames, synthImages]);
 
   const updateProjectField = async (field: string, value: any) => {
     if (!projectId) return;
@@ -184,14 +185,18 @@ export default function ProjectPage() {
   const addCharacter = async (name: string, description: string, imageUrl?: string) => {
     console.log(`[Page] addCharacter: ${name}`);
     const id = `char_${crypto.randomUUID()}`;
-    const charData = { name, role: "Principal", description, image: imageUrl || 'loading://character' };
+    // If it's a data URI, we don't want to save it to Firestore yet.
+    const isDataUri = imageUrl?.startsWith('data:');
+    const initialImageUrl = isDataUri ? 'loading://character' : (imageUrl || 'loading://character');
+
+    const charData = { name, role: "Principal", description, image: initialImageUrl };
     
     // Optimistic Update: Add to local state immediately
     setScene(prev => ({
       ...prev,
       manifest: {
         ...prev.manifest,
-        characters: [...prev.manifest.characters, { ...charData, id }]
+        characters: [...prev.manifest.characters, { ...charData, id, image: imageUrl || initialImageUrl }]
       }
     }));
 
@@ -204,22 +209,35 @@ export default function ProjectPage() {
       const firestorePromise = withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'characters', id), charData));
       
       if (imageUrl) {
-        await firestorePromise;
+        if (isDataUri) {
+          // Offload to GCS
+          const finalImageUrl = await uploadToGCS(imageUrl, `${id}.png`);
+          await firestorePromise;
+          await updateDoc(doc(db, 'projects', projectId, 'characters', id), { image: finalImageUrl });
+        } else {
+          await firestorePromise;
+        }
         return;
       }
       
       console.log(`[Page] Triggering image synthesis for ${name}...`);
       const apiPromise = generateBibleAsset(name, description, 'character');
       
-      // DECOUPLE: Update local state as soon as the API returns, don't wait for Firestore
-      apiPromise.then(img => {
+      // DECOUPLE: Update local state immediately upon API resolution
+      apiPromise.then(async (img) => {
         if (img) {
-          console.log(`[Page] Synthesis successful for ${id}, updating synthImages`);
+          console.log(`[Page] Synthesis successful for ${id}, checking if GCS offload needed...`);
           setSynthImages(prev => ({ ...prev, [id]: img }));
+          
+          let finalImageUrl = img;
+          if (img.startsWith('data:')) {
+            finalImageUrl = await uploadToGCS(img, `${id}.png`);
+          }
+          
+          await updateDoc(doc(db, 'projects', projectId, 'characters', id), { image: finalImageUrl });
         }
       }).catch(err => console.error(`[Page] Synthesis failed for ${id}:`, err));
 
-      console.log(`[Page] Writing character ${id} to Firestore...`);
       await firestorePromise;
       
     } catch (err) {
@@ -254,6 +272,12 @@ export default function ProjectPage() {
         if (img) {
           console.log(`[Page] Update successful, showing image locally...`);
           setSynthImages(prev => ({ ...prev, [existing.id]: img }));
+          
+          let finalImageUrl = img;
+          if (img.startsWith('data:')) {
+            finalImageUrl = await uploadToGCS(img, `${existing.id}.png`);
+          }
+          await updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: finalImageUrl });
         } else {
           await updateDoc(doc(db, 'projects', projectId, 'characters', existing.id), { image: "https://placehold.co/1024x1024/333/fff?text=No+Image" });
         }
@@ -267,15 +291,19 @@ export default function ProjectPage() {
 
   const addEnvironment = async (name: string, description: string, imageUrl?: string) => {
     console.log(`[Page] addEnvironment: ${name}`);
-    const id = `e-${Date.now()}`;
-    const envData = { name, mood: "Concept", colors: ['#555'], image: imageUrl || 'loading://environment' };
+    const id = `env_${crypto.randomUUID()}`;
+    // If it's a data URI, we don't want to save it to Firestore yet.
+    const isDataUri = imageUrl?.startsWith('data:');
+    const initialImageUrl = isDataUri ? 'loading://environment' : (imageUrl || 'loading://environment');
+
+    const envData = { name, mood: "Concept", colors: ['#555'], image: initialImageUrl };
     
     // Optimistic Update: Add to local state immediately
     setScene(prev => ({
       ...prev,
       manifest: {
         ...prev.manifest,
-        environments: [...prev.manifest.environments, { ...envData, id }]
+        environments: [...prev.manifest.environments, { ...envData, id, image: imageUrl || initialImageUrl }]
       }
     }));
 
@@ -287,7 +315,14 @@ export default function ProjectPage() {
       const firestorePromise = withFirestoreRetry(() => setDoc(doc(db, 'projects', projectId, 'environments', id), envData));
       
       if (imageUrl) {
-        await firestorePromise;
+        if (isDataUri) {
+          // Offload to GCS
+          const finalImageUrl = await uploadToGCS(imageUrl, `${id}.png`);
+          await firestorePromise;
+          await updateDoc(doc(db, 'projects', projectId, 'environments', id), { image: finalImageUrl });
+        } else {
+          await firestorePromise;
+        }
         return;
       }
       
@@ -295,14 +330,20 @@ export default function ProjectPage() {
       const apiPromise = generateBibleAsset(name, description, 'environment');
       
       // DECOUPLE: Update local state immediately upon API resolution
-      apiPromise.then(img => {
+      apiPromise.then(async (img) => {
         if (img) {
-          console.log(`[Page] Env synthesis successful for ${id}, updating synthImages`);
+          console.log(`[Page] Env synthesis successful for ${id}, checking if GCS offload needed...`);
           setSynthImages(prev => ({ ...prev, [id]: img }));
+          
+          let finalImageUrl = img;
+          if (img.startsWith('data:')) {
+            finalImageUrl = await uploadToGCS(img, `${id}.png`);
+          }
+          
+          await updateDoc(doc(db, 'projects', projectId, 'environments', id), { image: finalImageUrl });
         }
       }).catch(err => console.error(`[Page] Env synthesis failed for ${id}:`, err));
 
-      console.log(`[Page] Writing environment ${id} to Firestore...`);
       await firestorePromise;
 
     } catch (err) {
@@ -336,6 +377,12 @@ export default function ProjectPage() {
         if (img) {
           console.log(`[Page] Update successful, showing environment locally...`);
           setSynthImages(prev => ({ ...prev, [existing.id]: img }));
+          
+          let finalImageUrl = img;
+          if (img.startsWith('data:')) {
+            finalImageUrl = await uploadToGCS(img, `${existing.id}.png`);
+          }
+          await updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: finalImageUrl });
         } else {
           await updateDoc(doc(db, 'projects', projectId, 'environments', existing.id), { image: "https://placehold.co/1280x720/333/fff?text=No+Image" });
         }
@@ -447,46 +494,57 @@ export default function ProjectPage() {
 
     // 2. Create the frames in Firestore with 'loading' state
     const frameDataArray = (data.frames || []).map((f: any, i: number) => {
-      const id = `f-${i}-${Date.now()}`;
+      const id = `f-${crypto.randomUUID()}`;
       return { ...f, id, image: 'loading://storyboard', order: i };
     });
 
     for (const f of frameDataArray) {
-      await setDoc(doc(db, 'projects', projectId, 'frames', f.id), f);
+      // Parallel but distinct Firestore writes
+      setDoc(doc(db, 'projects', projectId, 'frames', f.id), f).catch(e => console.error("Initial frame save failed:", e));
     }
 
     // 3. FAN OUT: Trigger high-fidelity synthesis in parallel
-frameDataArray.forEach(async (f) => {
-  try {
-    // We use the 'f.prompt' here—this is the detailed description 
-    // generated by the 3.1 Flash Lite architect.
-    const img = await generateNanoBananaImage(
-      f.prompt, 
-      scene.manifest, 
-      { 
-        charId: f.characterId, 
-        envId: f.environmentId, 
-        shotType: f.shotType, 
-        emotion: f.directorsBrief?.emotionalArc 
-      }
-    );
+  frameDataArray.forEach(async (f) => {
+    try {
+      // We use the 'f.prompt' here—this is the detailed description 
+      // generated by the 3.1 Flash Lite architect.
+      console.log(`[Vivid] Dispatching Frame ${f.id} to Nano Banana 2...`);
+      const img = await generateNanoBananaImage(
+        f.prompt, 
+        scene.manifest, 
+        { 
+          charId: f.characterId, 
+          envId: f.environmentId, 
+          shotType: f.shotType, 
+          emotion: f.directorsBrief?.emotionalArc 
+        }
+      );
+      console.log(`[Vivid] Received URL for Frame ${f.id}:`, img);
 
-    if (img) {
-      // Because onSnapshot is listening, the moment this hits Firestore,
-      // the VisionStage spinner for this specific frame will disappear
-      // and the cinematic art will appear.
+      if (img) {
+        // 1. OPTIMISTIC UPDATE: Show it to the user INSTANTLY
+        setSynthImages(prev => ({ ...prev, [f.id]: img }));
+        
+        // 2. BACKGROUND SYNC: Offload to GCS and update Firestore
+        try {
+          let finalImageUrl = img;
+          if (img.startsWith('data:')) {
+            finalImageUrl = await uploadToGCS(img, `${f.id}.png`);
+          }
+          await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { image: finalImageUrl });
+          console.log(`[Vivid] Cloud sync complete for Frame ${f.id}`);
+        } catch (dbErr) {
+          console.error(`[Vivid] Cloud sync failed for Frame ${f.id}:`, dbErr);
+        }
+      }
+    } catch (e) {
+      console.error(`Frame ${f.id} synthesis failed:`, e);
+      // Fallback image so the user isn't stuck with a spinner forever
       await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { 
-        image: img 
+        image: 'https://placehold.co/1280x720/1a1a1a/666?text=Synthesis+Error' 
       });
     }
-  } catch (e) {
-    console.error(`Frame ${f.id} synthesis failed:`, e);
-    // Fallback image so the user isn't stuck with a spinner forever
-    await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { 
-      image: 'https://placehold.co/1280x720/1a1a1a/666?text=Synthesis+Error' 
-    });
-  }
-});
+  });
 
   } catch (err) {
     console.error('Storyboard failed:', err);
@@ -512,7 +570,13 @@ frameDataArray.forEach(async (f) => {
       );
       
       if (editedUrl) {
-        await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { image: editedUrl });
+        setSynthImages(prev => ({ ...prev, [frameId]: editedUrl }));
+        
+        let finalImageUrl = editedUrl;
+        if (editedUrl.startsWith('data:')) {
+          finalImageUrl = await uploadToGCS(editedUrl, `${frameId}_refined.png`);
+        }
+        await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { image: finalImageUrl });
       }
     } catch (err) {
       console.error("Paint to edit failed", err);
@@ -662,7 +726,7 @@ frameDataArray.forEach(async (f) => {
           onUpload={handleManuscriptUpload} 
         />
         <VisionStage 
-          frames={scene.frames} 
+          frames={mergedFrames} 
           selectedFrameId={selectedFrameId} 
           onSelectFrame={setSelectedFrameId} 
           onRefine={handlePaintToEdit} 
