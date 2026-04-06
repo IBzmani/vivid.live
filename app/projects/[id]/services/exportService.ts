@@ -151,27 +151,48 @@ export const exportCinemaMovie = async (
   ff.on('progress', progressHandler);
 
   try {
-    const validFrames = frames.filter(f => f.image && f.audioData);
-    if (validFrames.length === 0) throw new Error("No synthesized frames found for export. Ensure you have generated both images and audio for your sequence.");
+    // 1. Filter out only truly invalid frames (like those in loading state or without any image)
+    const validFrames = frames.filter(f => f.image && !f.image.startsWith('loading://'));
+    
+    if (validFrames.length === 0) {
+      const loadingCount = frames.filter(f => f.image?.startsWith('loading://')).length;
+      throw new Error(`No synthesized frames found for export. ${loadingCount} frames are still generating images. Please wait for synthesis to complete.`);
+    }
+
+    console.log(`[Export] Processing ${validFrames.length} valid frames. (Total frames: ${frames.length})`);
 
     // Write frames to FS
     for (let i = 0; i < validFrames.length; i++) {
       const frame = validFrames[i];
+      
+      // Image
       const imgBytes = await getFileBytes(frame.image);
       await ff.writeFile(`img${i}.png`, imgBytes);
       
-      const audioBinary = atob(frame.audioData!);
-      const audioBytes = new Uint8Array(audioBinary.length);
-      for (let j = 0; j < audioBinary.length; j++) audioBytes[j] = audioBinary.charCodeAt(j);
-      await ff.writeFile(`aud${i}.raw`, audioBytes);
+      // Audio (with silent fallback)
+      if (frame.audioData) {
+        const audioBinary = atob(frame.audioData);
+        const audioBytes = new Uint8Array(audioBinary.length);
+        for (let j = 0; j < audioBinary.length; j++) audioBytes[j] = audioBinary.charCodeAt(j);
+        await ff.writeFile(`aud${i}.raw`, audioBytes);
+      } else {
+        console.warn(`[Export] Frame ${i} (${frame.id}) is missing audio. Using 2s silence fallback.`);
+        // Create 2 seconds of silence (24000 samples/sec * 2 bytes/sample for 16-bit)
+        const silentBytes = new Uint8Array(24000 * 2 * 2); 
+        await ff.writeFile(`aud${i}.raw`, silentBytes);
+      }
     }
 
     const segmentFiles: string[] = [];
     
     // Encode individual segments
     for (let i = 0; i < validFrames.length; i++) {
-      const duration = await getAudioDuration(validFrames[i].audioData!);
+      const frame = validFrames[i];
+      // If no audioData, use 2.0s as duration for the silent segment
+      const duration = frame.audioData ? await getAudioDuration(frame.audioData) : 2.0;
       const outName = `seg${i}.mp4`;
+      
+      console.log(`[Export] Encoding segment ${i} (Duration: ${duration.toFixed(2)}s)...`);
       
       await ff.exec([
         '-loop', '1',

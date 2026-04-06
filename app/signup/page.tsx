@@ -27,7 +27,7 @@ export default function SignupPage() {
     
     try {
       await signupWithEmail(email, password, fullName);
-      router.push('/setup');
+      router.push('/dashboard');
     } catch (err: any) {
       let message = err.message || 'An error occurred. Please try again.';
       if (err.code === 'auth/email-already-in-use') {

@@ -484,6 +484,8 @@ export default function ProjectPage() {
   const handleGenerateStoryboard = async () => {
   if (isGenerating) return;
   setIsGenerating(true);
+
+  let frameDataArray: any[] = [];
   try {
     // 1. Get the JSON metadata (The logic)
     const data = await generateStoryboard(scene.script, scene.manifest, scene.genre);
@@ -492,8 +494,10 @@ export default function ProjectPage() {
     const frameSnaps = await snapCollection(`projects/${projectId}/frames`);
     await Promise.all(frameSnaps.docs.map(d => deleteDoc(d.ref)));
 
+
+
     // 2. Create the frames in Firestore with 'loading' state
-    const frameDataArray = (data.frames || []).map((f: any, i: number) => {
+    frameDataArray = (data.frames || []).map((f: any, i: number) => {
       const id = `f-${crypto.randomUUID()}`;
       return { ...f, id, image: 'loading://storyboard', order: i };
     });
@@ -550,6 +554,12 @@ export default function ProjectPage() {
     console.error('Storyboard failed:', err);
   } finally {
     setIsGenerating(false);
+
+    // 3. Now 'finally' can see 'frameDataArray' because it was declared at the top!
+    if (frameDataArray.length > 0) {
+      console.log("[Vivid] Starting background audio synthesis...");
+      autoGenerateAudio(frameDataArray);
+    }
   }
 };
 
@@ -586,18 +596,48 @@ export default function ProjectPage() {
   };
 
   const handleSynthesizeAudio = async (frameId: string) => {
+    // 1. Check local state AND a direct Firestore fetch to be absolutely sure
     const frame = scene.frames.find(f => f.id === frameId);
     if (!frame?.scriptSegment) return;
 
-    // If auto-audio already populated this frame, play immediately
+    // Guard: Prevent concurrent generations for the same frame
+    if (frame.isGeneratingAudio) {
+      console.log(`[Vivid] Audio already synthesizing for frame ${frameId}. Ignoring request.`);
+      return;
+    }
+
     if (frame.audioData) {
+      console.log(`[Vivid] Audio already exists in local state for frame ${frameId}. Playing...`);
       playAudio(frame.audioData, scene.playbackRate);
       return;
     }
 
-    // Fallback: generate on demand (e.g. auto-audio failed or timed out)
     try {
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) }));
+      // 2. Set loading state locally IMMEDIATELY
+      setScene(prev => ({ 
+        ...prev, 
+        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: true } : f) 
+      }));
+
+      // 3. Double-check Firestore before calling API (functional patterns might be slightly behind)
+      const frameRef = doc(db, 'projects', projectId, 'frames', frameId);
+      const snap = await withFirestoreRetry(() => getDoc(frameRef));
+      const remoteData = snap.exists() ? snap.data() : null;
+
+      if (remoteData?.audioData) {
+        console.log(`[Vivid] Found audio in Firestore for frame ${frameId}. Syncing and playing.`);
+        setScene(prev => ({
+          ...prev,
+          frames: prev.frames.map(f => 
+            f.id === frameId ? { ...f, audioData: remoteData.audioData, isGeneratingAudio: false } : f
+          )
+        }));
+        playAudio(remoteData.audioData, scene.playbackRate);
+        return;
+      }
+
+      // 4. Truly generate if NOT found in Firestore
+      console.log(`[Vivid] No audio found for frame ${frameId}. Triggering synthesis...`);
       const audio = await generateEmotionalAudio(
         frame.scriptSegment,
         frame.directorsBrief?.emotionalArc || 'Dramatic',
@@ -605,14 +645,32 @@ export default function ProjectPage() {
         scene.voice,
         scene.language
       );
+
       if (audio) {
-        await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { audioData: audio });
+        console.log(`[Vivid] Audio synthesized for frame ${frameId}. Persisting...`);
+
+        // 5. Update local state IMMEDIATELY
+        setScene(prev => ({
+          ...prev,
+          frames: prev.frames.map(f => 
+            f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f
+          )
+        }));
+
+        // 6. Play immediately
         playAudio(audio, scene.playbackRate);
+
+        // 7. Background sync to Firestore
+        await updateDoc(frameRef, { audioData: audio });
+        console.log(`[Vivid] Audio synced to Firestore for frame ${frameId}`);
       }
     } catch (err) {
       console.error('Audio synthesis failed', err);
-    } finally {
-      setScene(prev => ({ ...prev, frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) }));
+      // Reset loading state on error
+      setScene(prev => ({ 
+        ...prev, 
+        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingAudio: false } : f) 
+      }));
     }
   };
 
@@ -632,6 +690,34 @@ export default function ProjectPage() {
     source.connect(ctx.destination);
     source.start();
   };
+
+  const autoGenerateAllAudio = async (framesToProcess: any[]) => {
+  console.log("[Vivid] Starting sequential background audio synthesis...");
+  for (const f of framesToProcess) {
+    // Skip if already has audio
+    if (f.audioData) continue; 
+    
+    try {
+      const audio = await generateEmotionalAudio(
+        f.scriptSegment,
+        f.directorsBrief?.emotionalArc || 'Dramatic',
+        scene.genre,
+        scene.voice,
+        scene.language
+      );
+      if (audio) {
+        await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { audioData: audio });
+        // Update local state so the UI shows the "Audio Ready" status
+        setScene(prev => ({
+          ...prev,
+          frames: prev.frames.map(frame => frame.id === f.id ? { ...frame, audioData: audio } : frame)
+        }));
+      }
+    } catch (e) {
+      console.warn(`Auto-audio failed for ${f.id}`, e);
+    }
+  }
+};
 
   const [previewingVoice, setPreviewingVoice] = useState<VoiceName | null>(null);
 
