@@ -115,11 +115,18 @@ async function getFileBytes(url: string): Promise<Uint8Array> {
 /**
  * Calculates audio duration for FFmpeg -t flag.
  */
-async function getAudioDuration(base64: string): Promise<number> {
+async function getAudioDuration(audioSource: string): Promise<number> {
   try {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    let bytes: Uint8Array;
+    if (audioSource.startsWith('http')) {
+      const res = await fetch(audioSource);
+      const buf = await res.arrayBuffer();
+      bytes = new Uint8Array(buf);
+    } else {
+      const binary = atob(audioSource);
+      bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    }
     
     const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass({ sampleRate: 24000 });
@@ -171,9 +178,16 @@ export const exportCinemaMovie = async (
       
       // Audio (with silent fallback)
       if (frame.audioData) {
-        const audioBinary = atob(frame.audioData);
-        const audioBytes = new Uint8Array(audioBinary.length);
-        for (let j = 0; j < audioBinary.length; j++) audioBytes[j] = audioBinary.charCodeAt(j);
+        let audioBytes: Uint8Array;
+        if (frame.audioData.startsWith('http')) {
+          const res = await fetch(frame.audioData);
+          const buf = await res.arrayBuffer();
+          audioBytes = new Uint8Array(buf);
+        } else {
+          const audioBinary = atob(frame.audioData);
+          audioBytes = new Uint8Array(audioBinary.length);
+          for (let j = 0; j < audioBinary.length; j++) audioBytes[j] = audioBinary.charCodeAt(j);
+        }
         await ff.writeFile(`aud${i}.raw`, audioBytes);
       } else {
         console.warn(`[Export] Frame ${i} (${frame.id}) is missing audio. Using 2s silence fallback.`);

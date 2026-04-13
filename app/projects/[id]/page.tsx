@@ -472,7 +472,8 @@ export default function ProjectPage() {
           scene.language
         );
         if (audio) {
-          await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { audioData: audio });
+          const finalAudioUrl = await uploadToGCS(audio, `${frame.id}.raw`, 'audio/pcm');
+          await updateDoc(doc(db, 'projects', projectId, 'frames', frame.id), { audioData: finalAudioUrl });
         }
       } catch (err) {
         console.warn(`Auto-audio failed for frame ${frame.id}:`, err);
@@ -502,10 +503,11 @@ export default function ProjectPage() {
       return { ...f, id, image: 'loading://storyboard', order: i };
     });
 
-    for (const f of frameDataArray) {
-      // Parallel but distinct Firestore writes
-      setDoc(doc(db, 'projects', projectId, 'frames', f.id), f).catch(e => console.error("Initial frame save failed:", e));
-    }
+    await Promise.all(
+      frameDataArray.map(f => 
+        setDoc(doc(db, 'projects', projectId, 'frames', f.id), f).catch(e => console.error("Initial frame save failed:", e))
+      )
+    );
 
     // 3. FAN OUT: Trigger high-fidelity synthesis in parallel
   frameDataArray.forEach(async (f) => {
@@ -648,20 +650,22 @@ export default function ProjectPage() {
 
       if (audio) {
         console.log(`[Vivid] Audio synthesized for frame ${frameId}. Persisting...`);
+        
+        const finalAudioUrl = await uploadToGCS(audio, `${frameId}.raw`, 'audio/pcm');
 
         // 5. Update local state IMMEDIATELY
         setScene(prev => ({
           ...prev,
           frames: prev.frames.map(f => 
-            f.id === frameId ? { ...f, audioData: audio, isGeneratingAudio: false } : f
+            f.id === frameId ? { ...f, audioData: finalAudioUrl, isGeneratingAudio: false } : f
           )
         }));
 
         // 6. Play immediately
-        playAudio(audio, scene.playbackRate);
+        playAudio(finalAudioUrl, scene.playbackRate);
 
         // 7. Background sync to Firestore
-        await updateDoc(frameRef, { audioData: audio });
+        await updateDoc(frameRef, { audioData: finalAudioUrl });
         console.log(`[Vivid] Audio synced to Firestore for frame ${frameId}`);
       }
     } catch (err) {
@@ -674,12 +678,21 @@ export default function ProjectPage() {
     }
   };
 
-  const playAudio = async (base64: string, rate: number = 1.0) => {
+  const playAudio = async (audioSource: string, rate: number = 1.0) => {
     const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass({ sampleRate: 24000 });
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    
+    let bytes: Uint8Array;
+    if (audioSource.startsWith('http')) {
+      const res = await fetch(audioSource);
+      const buf = await res.arrayBuffer();
+      bytes = new Uint8Array(buf);
+    } else {
+      const binary = atob(audioSource);
+      bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    }
+    
     const dataInt16 = new Int16Array(bytes.buffer);
     const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
     const channelData = buffer.getChannelData(0);
@@ -691,33 +704,33 @@ export default function ProjectPage() {
     source.start();
   };
 
-  const autoGenerateAllAudio = async (framesToProcess: any[]) => {
-  console.log("[Vivid] Starting sequential background audio synthesis...");
-  for (const f of framesToProcess) {
-    // Skip if already has audio
-    if (f.audioData) continue; 
+//   const autoGenerateAllAudio = async (framesToProcess: any[]) => {
+//   console.log("[Vivid] Starting sequential background audio synthesis...");
+//   for (const f of framesToProcess) {
+//     // Skip if already has audio
+//     if (f.audioData) continue; 
     
-    try {
-      const audio = await generateEmotionalAudio(
-        f.scriptSegment,
-        f.directorsBrief?.emotionalArc || 'Dramatic',
-        scene.genre,
-        scene.voice,
-        scene.language
-      );
-      if (audio) {
-        await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { audioData: audio });
-        // Update local state so the UI shows the "Audio Ready" status
-        setScene(prev => ({
-          ...prev,
-          frames: prev.frames.map(frame => frame.id === f.id ? { ...frame, audioData: audio } : frame)
-        }));
-      }
-    } catch (e) {
-      console.warn(`Auto-audio failed for ${f.id}`, e);
-    }
-  }
-};
+//     try {
+//       const audio = await generateEmotionalAudio(
+//         f.scriptSegment,
+//         f.directorsBrief?.emotionalArc || 'Dramatic',
+//         scene.genre,
+//         scene.voice,
+//         scene.language
+//       );
+//       if (audio) {
+//         await updateDoc(doc(db, 'projects', projectId, 'frames', f.id), { audioData: audio });
+//         // Update local state so the UI shows the "Audio Ready" status
+//         setScene(prev => ({
+//           ...prev,
+//           frames: prev.frames.map(frame => frame.id === f.id ? { ...frame, audioData: audio } : frame)
+//         }));
+//       }
+//     } catch (e) {
+//       console.warn(`Auto-audio failed for ${f.id}`, e);
+//     }
+//   }
+// };
 
   const [previewingVoice, setPreviewingVoice] = useState<VoiceName | null>(null);
 

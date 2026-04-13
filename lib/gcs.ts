@@ -6,7 +6,7 @@ const storage = new Storage({
 
 const bucketName = 'vivid-assets-488415';
 
-export async function uploadBase64ToGCS(base64Data: string, fileName: string): Promise<string> {
+export async function uploadBase64ToGCS(base64Data: string, fileName: string, contentType: string = 'image/png'): Promise<string> {
   const bucket = storage.bucket(bucketName);
   const file = bucket.file(fileName);
 
@@ -17,7 +17,7 @@ export async function uploadBase64ToGCS(base64Data: string, fileName: string): P
   // 2. Save WITHOUT 'public: true'
   await file.save(buffer, {
     metadata: { 
-      contentType: 'image/png',
+      contentType: contentType,
       // Optional: cache control helps images load faster on repeat visits
       cacheControl: 'public, max-age=31536000',
     },

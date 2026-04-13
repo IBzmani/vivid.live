@@ -42,9 +42,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
  * NEW: Uploads a giant Base64 string to GCS and returns a tiny URL string.
  * This prevents the "Property image is longer than 1048487 bytes" error.
  */
-export async function uploadToGCS(base64: string, fileName: string): Promise<string> {
+export async function uploadToGCS(base64: string, fileName: string, contentType?: string): Promise<string> {
   console.log(`[geminiService] Offloading large image to GCS: ${fileName}`);
-  const data = await post<{ url: string }>('/api/storage/upload', { base64, fileName });
+  const data = await post<{ url: string }>('/api/storage/upload', { base64, fileName, contentType });
   return data.url;
 }
 

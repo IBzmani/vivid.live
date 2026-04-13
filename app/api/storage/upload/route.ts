@@ -3,7 +3,7 @@ import { uploadBase64ToGCS } from '@/lib/gcs';
 
 export async function POST(req: Request) {
   try {
-    const { base64, fileName } = await req.json();
+    const { base64, fileName, contentType } = await req.json();
 
     if (!base64) {
       return NextResponse.json({ error: 'No image data provided' }, { status: 400 });
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const uniqueName = `${crypto.randomUUID()}-${fileName}`;
     
     // This calls your existing GCS logic
-    const publicUrl = await uploadBase64ToGCS(base64, `uploads/${uniqueName}`);
+    const publicUrl = await uploadBase64ToGCS(base64, `uploads/${uniqueName}`, contentType);
 
     return NextResponse.json({ url: publicUrl });
   } catch (error: any) {
