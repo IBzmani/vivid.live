@@ -2,7 +2,7 @@
  * Client-side wrapper for the Gemini API routes.
  * All heavy lifting (Vertex AI, ADC auth) is done server-side.
  */
-import { VisualManifest, Genre, VoiceName } from '../types';
+import { VisualManifest, Genre, VoiceName, VisualStyle } from '../types';
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   console.log(`[geminiService] POST ${path}`, body);
@@ -76,11 +76,11 @@ async function toBase64(url: string): Promise<{ data: string; mimeType: string }
 export const generateBibleAsset = async (
   name: string,
   description: string,
-  type: 'character' | 'environment'
+  type: 'character' | 'environment',
+  genre: Genre,
+  visualStyle: VisualStyle
 ): Promise<string | null> => {
-  // Ensure the server-side logic for bible-asset also uploads to GCS and returns a URL, 
-  // NOT a raw base64 string.
-  const data = await post<{ imageUrl: string | null }>('/api/gemini/bible-asset', { name, description, type });
+  const data = await post<{ imageUrl: string | null }>('/api/gemini/bible-asset', { name, description, type, genre, visualStyle });
   return data.imageUrl;
 };
 
@@ -91,9 +91,10 @@ export const analyzeManuscriptDeep = async (manuscript: string) => {
 export const generateStoryboard = async (
   script: string,
   manifest: VisualManifest,
-  genre: Genre
+  genre: Genre,
+  visualStyle: VisualStyle
 ): Promise<{ frames: any[] }> => {
-  const data = await post<{ frames: any[] }>('/api/gemini/storyboard', { script, manifest, genre });
+  const data = await post<{ frames: any[] }>('/api/gemini/storyboard', { script, manifest, genre, visualStyle });
   return data;
 };
 
@@ -101,6 +102,8 @@ export const generateNanoBananaImage = async (
   prompt: string,
   manifest: VisualManifest,
   references: { charId?: string; envId?: string; shotType?: string; emotion?: string } = {},
+  genre: Genre,
+  visualStyle: VisualStyle,
   baseImage?: string,
   clickCoord?: { x: number; y: number }
 ): Promise<string | null> => {
@@ -120,6 +123,8 @@ export const generateNanoBananaImage = async (
     baseImageData,
     baseImageMime,
     clickCoord,
+    genre,
+    visualStyle,
   });
   
   return data.imageUrl;

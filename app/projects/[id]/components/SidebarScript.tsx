@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { FileText, Upload, ChevronDown, Drama, Smile, Skull, Zap, Rocket, Moon, Film, Mic2, Globe, Gauge, RotateCw } from 'lucide-react';
-import { Genre, VoiceName } from '../types';
+import { FileText, Upload, ChevronDown, Drama, Smile, Skull, Zap, Rocket, Moon, Film, Mic2, Globe, Gauge, RotateCw, Camera, BookOpen, Palette, Box, Sparkles } from 'lucide-react';
+import { Genre, VoiceName, VisualStyle } from '../types';
 
 interface SidebarScriptProps {
   script: string;
   genre: Genre;
+  visualStyle: VisualStyle;
   voice: VoiceName;
   language: string;
   playbackRate: number;
   onScriptChange: (val: string) => void;
   onGenreChange: (val: Genre) => void;
+  onVisualStyleChange: (val: VisualStyle) => void;
   onVoiceChange: (val: VoiceName) => void;
   onLanguageChange: (val: string) => void;
   onPlaybackRateChange: (val: number) => void;
@@ -24,16 +26,18 @@ interface SidebarScriptProps {
 }
 
 const SidebarScript: React.FC<SidebarScriptProps> = ({ 
-  script, genre, voice, language, playbackRate,
-  onScriptChange, onGenreChange, onVoiceChange, onLanguageChange, onPlaybackRateChange,
+  script, genre, visualStyle, voice, language, playbackRate,
+  onScriptChange, onGenreChange, onVisualStyleChange, onVoiceChange, onLanguageChange, onPlaybackRateChange,
   onPreviewVoice, previewingVoice,
   location, title, highlightText, onUpload 
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isGenreOpen, setIsGenreOpen] = useState(false);
+  const [isStyleOpen, setIsStyleOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const styleDropdownRef = useRef<HTMLDivElement>(null);
   const voiceDropdownRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +54,9 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsGenreOpen(false);
+      }
+      if (styleDropdownRef.current && !styleDropdownRef.current.contains(event.target as Node)) {
+        setIsStyleOpen(false);
       }
       if (voiceDropdownRef.current && !voiceDropdownRef.current.contains(event.target as Node)) {
         setIsVoiceOpen(false);
@@ -74,8 +81,20 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({
   };
 
   const genres: Genre[] = ['Drama', 'Comedy', 'Horror', 'Action', 'Sci-Fi', 'Noir'];
+  const visualStyles: VisualStyle[] = ['Cinematic', 'Anime', 'Comic Book', 'Watercolor', '3D Render'];
   const voices: VoiceName[] = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
   const languages = ['English', 'Spanish', 'French', 'German'];
+
+  const getStyleIcon = (s: VisualStyle) => {
+    switch (s) {
+      case 'Cinematic':  return <Camera className="size-4" />;
+      case 'Anime':      return <Sparkles className="size-4" />;
+      case 'Comic Book': return <BookOpen className="size-4" />;
+      case 'Watercolor': return <Palette className="size-4" />;
+      case '3D Render':  return <Box className="size-4" />;
+      default:           return <Film className="size-4" />;
+    }
+  };
 
   const getGenreIcon = (g: Genre) => {
     switch (g) {
@@ -106,6 +125,46 @@ const SidebarScript: React.FC<SidebarScriptProps> = ({
       </div>
       
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+        {/* Visual Style Selector */}
+        <div className="space-y-2 relative" ref={styleDropdownRef}>
+          <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Aesthetic Paradigm</span>
+          
+          <button 
+            onClick={() => setIsStyleOpen(!isStyleOpen)}
+            className="w-full flex items-center justify-between bg-black/40 border border-white/5 rounded px-3 py-2 text-[10px] font-bold text-violet-400 uppercase tracking-widest hover:bg-white/5 transition-all focus:outline-none focus:border-violet-500/50 group"
+          >
+            <div className="flex items-center gap-2">
+              {getStyleIcon(visualStyle)}
+              <span>{visualStyle}</span>
+            </div>
+            <ChevronDown className={`size-4 transition-transform duration-300 ${isStyleOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isStyleOpen && (
+            <div className="absolute top-full left-0 w-full mt-1 bg-obsidian border border-white/10 rounded-lg shadow-2xl z-50 overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="py-1">
+                {visualStyles.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      onVisualStyleChange(s);
+                      setIsStyleOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                      visualStyle === s 
+                        ? 'bg-violet-600 text-white' 
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    {getStyleIcon(s)}
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Custom Genre Selection UI */}
         <div className="space-y-2 relative" ref={dropdownRef}>
           <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest">Atmospheric Profile</span>

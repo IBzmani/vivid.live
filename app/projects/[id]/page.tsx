@@ -19,7 +19,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/FirebaseProvider';
 
 import { INITIAL_SCENE } from './constants';
-import { SceneState, Character, Environment, Frame, Genre, VoiceName } from './types';
+import { SceneState, Character, Environment, Frame, Genre, VoiceName, VisualStyle } from './types';
 import Header from './components/Header';
 import SidebarScript from './components/SidebarScript';
 import VisionStage from './components/VisionStage';
@@ -102,6 +102,7 @@ export default function ProjectPage() {
           title: data.title || prev.title,
           script: data.script || prev.script,
           genre: data.genre || prev.genre,
+          visualStyle: data.visualStyle || prev.visualStyle,
           voice: data.voice || prev.voice,
           language: data.language || prev.language,
           playbackRate: data.playbackRate || prev.playbackRate,
@@ -115,6 +116,7 @@ export default function ProjectPage() {
           updatedAt: new Date().toISOString(),
           script: '',
           genre: 'Drama',
+          visualStyle: 'Cinematic',
           voice: 'Puck',
           language: 'English',
           playbackRate: 1.0
@@ -221,7 +223,7 @@ export default function ProjectPage() {
       }
       
       console.log(`[Page] Triggering image synthesis for ${name}...`);
-      const apiPromise = generateBibleAsset(name, description, 'character');
+      const apiPromise = generateBibleAsset(name, description, 'character', scene.genre, scene.visualStyle);
       
       // DECOUPLE: Update local state immediately upon API resolution
       apiPromise.then(async (img) => {
@@ -268,7 +270,7 @@ export default function ProjectPage() {
           description, 
           image: 'loading://character' 
         }));
-        const img = await generateBibleAsset(name, description, 'character');
+        const img = await generateBibleAsset(name, description, 'character', scene.genre, scene.visualStyle);
         if (img) {
           console.log(`[Page] Update successful, showing image locally...`);
           setSynthImages(prev => ({ ...prev, [existing.id]: img }));
@@ -327,7 +329,7 @@ export default function ProjectPage() {
       }
       
       console.log(`[Page] Triggering environment synthesis for ${name}...`);
-      const apiPromise = generateBibleAsset(name, description, 'environment');
+      const apiPromise = generateBibleAsset(name, description, 'environment', scene.genre, scene.visualStyle);
       
       // DECOUPLE: Update local state immediately upon API resolution
       apiPromise.then(async (img) => {
@@ -373,7 +375,7 @@ export default function ProjectPage() {
           mood: description, 
           image: 'loading://environment' 
         }));
-        const img = await generateBibleAsset(name, description, 'environment');
+        const img = await generateBibleAsset(name, description, 'environment', scene.genre, scene.visualStyle);
         if (img) {
           console.log(`[Page] Update successful, showing environment locally...`);
           setSynthImages(prev => ({ ...prev, [existing.id]: img }));
@@ -489,7 +491,7 @@ export default function ProjectPage() {
   let frameDataArray: any[] = [];
   try {
     // 1. Get the JSON metadata (The logic)
-    const data = await generateStoryboard(scene.script, scene.manifest, scene.genre);
+    const data = await generateStoryboard(scene.script, scene.manifest, scene.genre, scene.visualStyle);
     
     // Clear old frames
     const frameSnaps = await snapCollection(`projects/${projectId}/frames`);
@@ -523,7 +525,9 @@ export default function ProjectPage() {
           envId: f.environmentId, 
           shotType: f.shotType, 
           emotion: f.directorsBrief?.emotionalArc 
-        }
+        },
+        scene.genre,
+        scene.visualStyle
       );
       console.log(`[Vivid] Received URL for Frame ${f.id}:`, img);
 
@@ -576,7 +580,9 @@ export default function ProjectPage() {
       const editedUrl = await generateNanoBananaImage(
         instruction, 
         scene.manifest, 
-        { charId: target.characterId, envId: target.environmentId, shotType: target.shotType, emotion: target.directorsBrief?.emotionalArc }, 
+        { charId: target.characterId, envId: target.environmentId, shotType: target.shotType, emotion: target.directorsBrief?.emotionalArc },
+        scene.genre,
+        scene.visualStyle,
         target.image, 
         coord
       );
@@ -809,11 +815,13 @@ export default function ProjectPage() {
         <SidebarScript 
           script={scene.script} 
           genre={scene.genre}
+          visualStyle={scene.visualStyle}
           voice={scene.voice}
           language={scene.language}
           playbackRate={scene.playbackRate}
           onScriptChange={(s) => updateProjectField('script', s)} 
           onGenreChange={(g) => updateProjectField('genre', g)}
+          onVisualStyleChange={(vs) => updateProjectField('visualStyle', vs)}
           onVoiceChange={(v) => updateProjectField('voice', v)}
           onLanguageChange={(l) => updateProjectField('language', l)}
           onPlaybackRateChange={(r) => updateProjectField('playbackRate', r)}

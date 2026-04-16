@@ -1,4 +1,5 @@
 export type Genre = 'Drama' | 'Comedy' | 'Horror' | 'Action' | 'Sci-Fi' | 'Noir';
+export type VisualStyle = 'Cinematic' | 'Anime' | 'Comic Book' | 'Watercolor' | '3D Render';
 
 export interface Character {
   id: string;
@@ -49,6 +50,7 @@ export interface SceneState {
   location: string;
   script: string;
   genre: Genre;
+  visualStyle: VisualStyle;
   voice: VoiceName;
   language: string;
   playbackRate: number;

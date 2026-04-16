@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { getStyleGuide } from '@/lib/prompts';
 
 // 1. Instance for Gemini 3.1 (Global)
 const globalAi = new GoogleGenAI({
@@ -15,8 +16,6 @@ const regionalAi = new GoogleGenAI({
   project: 'vivid-488415',
   location: 'us-central1', // Imagen 3 lives here
 });
-
-const STYLE_GUIDE = 'Aesthetic: High-fidelity cinematic concept art. Professional cinematography, realistic volumetric lighting, deep shadows, sharp digital painting. 8k resolution look.';
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
   let delay = 2000;
@@ -42,11 +41,12 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, description, type } = await req.json();
+    const { name, description, type, genre, visualStyle } = await req.json();
+    const STYLE_GUIDE = getStyleGuide(visualStyle ?? 'Cinematic', genre ?? 'Drama');
 
     const prompt = type === 'character'
-      ? `${STYLE_GUIDE} MASTER CHARACTER PLATE: ${name}. ${description}.`
-      : `${STYLE_GUIDE} WORLD BUILDING PLATE: ${name}. ${description}.`;
+      ? `${STYLE_GUIDE}\n\nMASTER CHARACTER PLATE: ${name}. ${description}.`
+      : `${STYLE_GUIDE}\n\nWORLD BUILDING PLATE: ${name}. ${description}.`;
 
     const result = await withRetry(async () => {
       try {

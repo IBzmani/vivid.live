@@ -5,6 +5,7 @@ export const INITIAL_SCENE: SceneState = {
   location: "Lower Sector 7 - Rain-slicked Alleyway",
   script: "EXT. ALLEYWAY - NIGHT\n\nThe rain falls in heavy, rhythmic sheets. Kael stands in the shadows, his cybernetic eye pulsing a faint crimson. He's waiting for the contact.\n\nA hover-cab splashes through a puddle nearby. The neon signs flicker, casting long, distorted shadows across the wet pavement.",
   genre: "Sci-Fi",
+  visualStyle: "Cinematic",
   voice: "Zephyr",
   language: "English",
   playbackRate: 1.0,

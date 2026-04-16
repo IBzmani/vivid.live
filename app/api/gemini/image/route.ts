@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { uploadBase64ToGCS } from '@/lib/gcs';
+import { getStyleGuide } from '@/lib/prompts';
 
 // GLOBAL Instance: Dedicated to Frontier Multimodal Models (Nano Banana 2)
 const globalAi = new GoogleGenAI({
@@ -16,8 +17,6 @@ const regionalAi = new GoogleGenAI({
   project: 'vivid-488415',
   location: 'us-central1', 
 });
-
-const STYLE_GUIDE = 'Aesthetic: High-fidelity cinematic concept art. Professional cinematography, realistic volumetric lighting, deep shadows, sharp digital painting. 8k resolution look.';
 
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
   let delay = 2000;
@@ -39,8 +38,34 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
 }
 
 export async function POST(req: NextRequest) {
+  /**
+   * Converts an image source (data URI or public URL) to an inlineData part.
+   * Returns null if the image is unavailable or in a loading state.
+   */
+  async function toInlinePart(imageUrl: string | undefined): Promise<{ mimeType: string; data: string } | null> {
+    if (!imageUrl || imageUrl.startsWith('loading://')) return null;
+    if (imageUrl.startsWith('data:')) {
+      const [header, data] = imageUrl.split(',');
+      return { mimeType: header.split(':')[1].split(';')[0], data };
+    }
+    if (imageUrl.startsWith('http')) {
+      try {
+        const res = await fetch(imageUrl);
+        if (!res.ok) return null;
+        const buf = await res.arrayBuffer();
+        const b64 = Buffer.from(buf).toString('base64');
+        const mime = res.headers.get('content-type') || 'image/png';
+        return { mimeType: mime, data: b64 };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
   try {
-    const { prompt, manifest, references, baseImageData, baseImageMime, clickCoord } = await req.json();
+    const { prompt, manifest, references, baseImageData, baseImageMime, clickCoord, genre, visualStyle } = await req.json();
+    const STYLE_GUIDE = getStyleGuide(visualStyle ?? 'Cinematic', genre ?? 'Drama');
     const parts: any[] = [];
 
     // 1. GLOBAL STYLE & ATMOSPHERE
@@ -49,9 +74,9 @@ export async function POST(req: NextRequest) {
     // 2. ENVIRONMENT DNA
     if (references?.envId) {
       const env = manifest.environments.find((e: any) => e.id === references.envId);
-      if (env?.image?.startsWith('data:')) {
-        const [header, data] = env.image.split(',');
-        parts.push({ inlineData: { mimeType: header.split(':')[1].split(';')[0], data } });
+      const envPart = await toInlinePart(env?.image);
+      if (envPart) {
+        parts.push({ inlineData: envPart });
         parts.push({ text: 'ENVIRONMENT CONTEXT: Extract the architectural style and lighting.' });
       }
     }
@@ -59,9 +84,9 @@ export async function POST(req: NextRequest) {
     // 3. CHARACTER IDENTITY
     if (references?.charId) {
       const char = manifest.characters.find((c: any) => c.id === references.charId);
-      if (char?.image?.startsWith('data:')) {
-        const [header, data] = char.image.split(',');
-        parts.push({ inlineData: { mimeType: header.split(':')[1].split(';')[0], data } });
+      const charPart = await toInlinePart(char?.image);
+      if (charPart) {
+        parts.push({ inlineData: charPart });
         parts.push({ text: `CHARACTER IDENTITY: This is ${char.name}. Match features precisely.` });
       }
     }

@@ -32,17 +32,21 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { script, manifest, genre } = await req.json();
+    const { script, manifest, genre, visualStyle } = await req.json();
 
     const charList = manifest.characters.map((c: any) => `${c.name} (ID: ${c.id})`).join(', ');
     const envList = manifest.environments.map((e: any) => `${e.name} (ID: ${e.id})`).join(', ');
+    const styleLabel = visualStyle ?? 'Cinematic';
 
     const prompt = `As a Film Director specialized in ${genre} cinema, partition the ENTIRE provided script into a sequence of storyboard frames.
+
+VISUAL STYLE: This project is rendered in a "${styleLabel}" aesthetic. All visual "prompt" descriptions MUST produce imagery consistent with this style.
+${styleLabel === 'Anime' && genre === 'Comedy' ? 'For Anime Comedy: Ensure prompts reference exaggerated expressions, super-deformed/chibi moments where appropriate, sweat drops, and classic anime comedic visual gags.' : ''}
 
 RULES:
 1. Use the Bible entities: Characters: ${charList || 'none'}. Locations: ${envList || 'none'}.
 2. The "scriptSegment" for each frame MUST be the actual original text.
-3. For "prompt", write a detailed visual description for an AI image generator. Include lighting, camera angle, and character action.
+3. For "prompt", write a detailed visual description for an AI image generator tailored to the "${styleLabel}" style. Include lighting, camera angle, and character action.
 4. "directorsBrief" must contain emotional and technical direction.
 
 Script: ${script}`;
