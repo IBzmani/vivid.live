@@ -147,6 +147,36 @@ export const generateEmotionalAudio = async (
   return data.audioData;
 };
 
+export const generateDialogueAudio = async (
+  dialogueText: string,
+  speakerName?: string,
+  voice?: VoiceName,
+  genre?: Genre,
+  language?: string
+): Promise<{ audioUrl: string | null; audioData: string | null }> => {
+  return post<{ audioUrl: string | null; audioData: string | null }>('/api/audio/dialogue', {
+    dialogueText,
+    speakerName,
+    voice,
+    genre,
+    language,
+  });
+};
+
+export const generateVideoMotion = async (
+  imageUrl: string,
+  prompt: string,
+  cameraMotion?: string,
+  shotAngle?: string
+): Promise<{ videoUrl: string | null; motionPrompt: string }> => {
+  return post<{ videoUrl: string | null; motionPrompt: string }>('/api/video/motion', {
+    imageUrl,
+    prompt,
+    cameraMotion,
+    shotAngle,
+  });
+};
+
 export const chatWithCoCreator = async (
   message: string,
   history: { role: 'user' | 'model'; parts: { text: string }[] }[],
@@ -159,3 +189,4 @@ export const chatWithCoCreator = async (
   });
   return data.text;
 };
+

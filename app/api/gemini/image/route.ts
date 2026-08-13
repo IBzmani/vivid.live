@@ -71,23 +71,36 @@ export async function POST(req: NextRequest) {
     // 1. GLOBAL STYLE & ATMOSPHERE
     parts.push({ text: `${STYLE_GUIDE} MOOD: ${references?.emotion || 'Cinematic'}.` });
 
-    // 2. ENVIRONMENT DNA
+    // 2. ENVIRONMENT MASTER PLATE & DNA
     if (references?.envId) {
-      const env = manifest.environments.find((e: any) => e.id === references.envId);
-      const envPart = await toInlinePart(env?.image);
+      const env = manifest.environments?.find((e: any) => e.id === references.envId);
+      const masterPlateUrl = env?.masterPlate || env?.image;
+      const envPart = await toInlinePart(masterPlateUrl);
       if (envPart) {
         parts.push({ inlineData: envPart });
-        parts.push({ text: 'ENVIRONMENT CONTEXT: Extract the architectural style and lighting.' });
+        parts.push({ text: `ENVIRONMENT MASTER PLATE: Extract architectural layout, set lighting, and color space from location "${env?.name || 'Environment'}".` });
       }
     }
 
-    // 3. CHARACTER IDENTITY
+    // 3. CHARACTER IDENTITY & MULTI-ANGLE TURNAROUND
     if (references?.charId) {
-      const char = manifest.characters.find((c: any) => c.id === references.charId);
-      const charPart = await toInlinePart(char?.image);
-      if (charPart) {
-        parts.push({ inlineData: charPart });
-        parts.push({ text: `CHARACTER IDENTITY: This is ${char.name}. Match features precisely.` });
+      const char = manifest.characters?.find((c: any) => c.id === references.charId);
+      if (char) {
+        // Main identity reference image
+        const charPart = await toInlinePart(char.image);
+        if (charPart) {
+          parts.push({ inlineData: charPart });
+          parts.push({ text: `PRIMARY CHARACTER IDENTITY: This is ${char.name} (${char.description || ''}). Match facial features, hair structure, eye shape, and clothing style precisely.` });
+        }
+        // Additional turnaround angle reference if available
+        const profileAngleUrl = char.angles?.profile || char.angles?.front;
+        if (profileAngleUrl && profileAngleUrl !== char.image) {
+          const anglePart = await toInlinePart(profileAngleUrl);
+          if (anglePart) {
+            parts.push({ inlineData: anglePart });
+            parts.push({ text: `CHARACTER TURNAROUND ANGLE: Secondary angle reference for ${char.name} to maintain 3D facial volume.` });
+          }
+        }
       }
     }
 
@@ -101,8 +114,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. FINAL SHOT PROMPT
-    parts.push({ text: `STORYBOARD FRAME: A ${references?.shotType || 'cinematic shot'} showing ${prompt}.` });
+    // 5. FINAL SHOT COMPOSITION & ANGLE
+    const shotLabel = references?.shotAngle || references?.shotType || 'Cinematic Shot';
+    parts.push({ text: `STORYBOARD FRAME: A ${shotLabel} showing ${prompt}. Maintain character identity and environment continuity accurately.` });
 
     const rawBase64 = await withRetry(async () => {
       try {

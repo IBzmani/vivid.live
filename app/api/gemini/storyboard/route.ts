@@ -45,9 +45,11 @@ ${styleLabel === 'Anime' && genre === 'Comedy' ? 'For Anime Comedy: Ensure promp
 
 RULES:
 1. Use the Bible entities: Characters: ${charList || 'none'}. Locations: ${envList || 'none'}.
-2. The "scriptSegment" for each frame MUST be the actual original text.
-3. For "prompt", write a detailed visual description for an AI image generator tailored to the "${styleLabel}" style. Include lighting, camera angle, and character action.
-4. "directorsBrief" must contain emotional and technical direction.
+2. The "scriptSegment" for each frame MUST be the actual original text fragment.
+3. For "prompt", write a detailed visual description for an AI image generator tailored to the "${styleLabel}" style. Include lighting, camera composition, character action, and atmosphere.
+4. Extract "dialogueSpeaker" and "dialogueText" if a character is speaking in this shot.
+5. Determine appropriate "shotAngle" (e.g. Wide Shot, Medium Shot, Close Up, Over The Shoulder, Low Angle) and "cameraMotion" (e.g. Static, Pan Left, Pan Right, Zoom In, Zoom Out, Tilt Up, Dolly In) for film directing.
+6. "directorsBrief" must contain emotional and technical direction.
 
 Script: ${script}`;
 
@@ -71,6 +73,10 @@ Script: ${script}`;
                     characterId: { type: Type.STRING },
                     environmentId: { type: Type.STRING },
                     shotType: { type: Type.STRING },
+                    shotAngle: { type: Type.STRING },
+                    cameraMotion: { type: Type.STRING },
+                    dialogueSpeaker: { type: Type.STRING },
+                    dialogueText: { type: Type.STRING },
                     directorsBrief: {
                       type: Type.OBJECT,
                       properties: {

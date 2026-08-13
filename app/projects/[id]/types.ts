@@ -1,5 +1,7 @@
 export type Genre = 'Drama' | 'Comedy' | 'Horror' | 'Action' | 'Sci-Fi' | 'Noir';
 export type VisualStyle = 'Cinematic' | 'Anime' | 'Comic Book' | 'Watercolor' | '3D Render';
+export type CameraMotion = 'Static' | 'Pan Left' | 'Pan Right' | 'Zoom In' | 'Zoom Out' | 'Tilt Up' | 'Tilt Down' | 'Dolly In';
+export type ShotAngle = 'Wide Shot' | 'Medium Shot' | 'Close Up' | 'Over The Shoulder' | 'Extreme Close Up' | 'Low Angle' | 'High Angle';
 
 export interface Character {
   id: string;
@@ -7,6 +9,11 @@ export interface Character {
   role: string;
   description: string;
   image: string;
+  angles?: {
+    front?: string;
+    profile?: string;
+    action?: string;
+  };
 }
 
 export interface Environment {
@@ -15,6 +22,7 @@ export interface Environment {
   mood: string;
   colors: string[];
   image: string;
+  masterPlate?: string;
 }
 
 export interface VisualManifest {
@@ -31,10 +39,16 @@ export interface Frame {
   scriptSegment: string;
   isGenerating?: boolean;
   isGeneratingAudio?: boolean;
+  isGeneratingVideo?: boolean;
   audioData?: string;
+  videoUrl?: string;
   characterId?: string;
   environmentId?: string;
   shotType?: string;
+  shotAngle?: ShotAngle;
+  cameraMotion?: CameraMotion;
+  dialogueSpeaker?: string;
+  dialogueText?: string;
   directorsBrief?: {
     emotionalArc: string;
     lightingScheme: string;
@@ -58,3 +72,4 @@ export interface SceneState {
   frames: Frame[];
   sentimentData: number[];
 }
+

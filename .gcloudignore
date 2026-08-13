@@ -1,0 +1,17 @@
+.gcloudignore
+.git
+.gitignore
+
+# node-specific
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# next.js
+.next/
+out/
+build/
+
+# env files
+.env
+.env*.local

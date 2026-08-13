@@ -771,13 +771,26 @@ export default function ProjectPage() {
   };
 
 
+  const [exportStage, setExportStage] = useState<string>("");
+
   const handleExportMovie = async () => {
     if (isExporting) return;
+    
+    const validFrames = scene.frames.filter(f => f.image && !f.image.startsWith('loading://'));
+    if (validFrames.length === 0) {
+      alert("No rendered frames available to export. Please wait for image synthesis to finish.");
+      return;
+    }
+
+    console.log(`[Vivid] Starting Cinema Export for ${validFrames.length} frames...`);
     setIsExporting(true);
     setExportProgress(0);
+    setExportStage("Initializing FFmpeg...");
+
     try {
-      const url = await exportCinemaMovie(scene.frames, (progress) => {
-        setExportProgress(progress);
+      const url = await exportCinemaMovie(scene.frames, (progress, stage) => {
+        setExportProgress(Math.min(100, progress));
+        if (stage) setExportStage(stage);
       });
       if (url) {
         const a = document.createElement('a');
@@ -785,10 +798,13 @@ export default function ProjectPage() {
         a.download = `${scene.title || 'lorecast'}.mp4`;
         a.click();
       }
-    } catch (err) {
-      console.error("Export failed", err);
+    } catch (err: any) {
+      console.error("[Vivid] Export failed critical error:", err);
+      alert(`Export Failed: ${err.message || "Unknown error"}. Check console for details.`);
     } finally {
       setIsExporting(false);
+      setExportProgress(0);
+      setExportStage("");
     }
   };
 
@@ -802,6 +818,41 @@ export default function ProjectPage() {
       </div>
     );
   }
+
+  const handleGenerateVideoMotion = async (frameId: string) => {
+    const frame = scene.frames.find(f => f.id === frameId);
+    if (!frame || !frame.image || frame.image.startsWith('loading://')) return;
+
+    try {
+      setScene(prev => ({
+        ...prev,
+        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingVideo: true } : f)
+      }));
+
+      const { generateVideoMotion } = await import('./services/geminiService');
+      const { videoUrl } = await generateVideoMotion(
+        frame.image,
+        frame.prompt,
+        frame.cameraMotion,
+        frame.shotAngle || frame.shotType
+      );
+
+      if (videoUrl) {
+        setScene(prev => ({
+          ...prev,
+          frames: prev.frames.map(f => f.id === frameId ? { ...f, videoUrl, isGeneratingVideo: false } : f)
+        }));
+        await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { videoUrl });
+      }
+    } catch (err) {
+      console.error('Video motion generation failed:', err);
+    } finally {
+      setScene(prev => ({
+        ...prev,
+        frames: prev.frames.map(f => f.id === frameId ? { ...f, isGeneratingVideo: false } : f)
+      }));
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-obsidian text-white font-sans overflow-hidden relative">
@@ -838,6 +889,7 @@ export default function ProjectPage() {
           onSelectFrame={setSelectedFrameId} 
           onRefine={handlePaintToEdit} 
           onPlayAudio={handleSynthesizeAudio} 
+          onGenerateVideo={handleGenerateVideoMotion}
           onAppendFrame={appendFrame} 
         />
         <WorldBible 
@@ -887,7 +939,7 @@ export default function ProjectPage() {
             <div className="w-[500px] flex flex-col items-center">
               <RotateCw className="size-20 text-primary animate-spin mb-8 shadow-[0_0_30px_rgba(236,182,19,0.2)]" />
               <h2 className="text-2xl font-bold tracking-tight mb-2">Rendering Cinema Movie</h2>
-              <p className="text-slate-500 text-sm uppercase tracking-widest font-bold mb-10">Stitching Sequence: {exportProgress}%</p>
+              <p className="text-slate-500 text-sm uppercase tracking-widest font-bold mb-10">{exportStage || "Stitching Sequence"}: {exportProgress}%</p>
               <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mb-4">
                 <motion.div 
                   className="h-full bg-primary" 

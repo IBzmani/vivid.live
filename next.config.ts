@@ -35,10 +35,29 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   output: 'standalone',
   transpilePackages: ['lucide-react'],
+  // Cross-Origin Isolation: required for SharedArrayBuffer which FFmpeg WASM uses.
+  // Without these two headers, the browser refuses to instantiate the WASM binary.
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Embedder-Policy', value: 'credentialless' },
+        ],
+      },
+    ];
+  },
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
     // Do not modifyâfile watching is disabled to prevent flickering during agent edits.

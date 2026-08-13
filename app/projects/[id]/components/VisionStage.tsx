@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Clapperboard, Pencil, Play, PlusSquare, RotateCw } from 'lucide-react';
+import { Clapperboard, Pencil, Play, PlusSquare, RotateCw, Video, Camera, Mic, Film } from 'lucide-react';
 import { Frame } from '../types';
 
 interface VisionStageProps {
@@ -11,12 +11,22 @@ interface VisionStageProps {
   onSelectFrame: (id: string) => void;
   onRefine: (id: string, prompt: string, coord?: { x: number, y: number }) => void;
   onPlayAudio: (id: string) => void;
+  onGenerateVideo?: (id: string) => void;
   onAppendFrame: () => void;
 }
 
-const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSelectFrame, onRefine, onPlayAudio, onAppendFrame }) => {
+const VisionStage: React.FC<VisionStageProps> = ({ 
+  frames, 
+  selectedFrameId, 
+  onSelectFrame, 
+  onRefine, 
+  onPlayAudio, 
+  onGenerateVideo,
+  onAppendFrame 
+}) => {
   const [instruction, setInstruction] = useState("");
   const [clickCoord, setClickCoord] = useState<{ x: number, y: number } | null>(null);
+  const [showVideoModal, setShowVideoModal] = useState<string | null>(null);
 
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>, frameId: string) => {
     if (selectedFrameId !== frameId) {
@@ -37,6 +47,8 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
     }
   };
 
+  const selectedFrame = frames.find(f => f.id === selectedFrameId);
+
   return (
     <section className="flex-1 flex flex-col bg-obsidian overflow-hidden">
       <div className="p-4 border-b border-white/5 flex justify-between items-center glass-panel z-20">
@@ -48,6 +60,19 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
           <div className="h-4 w-px bg-white/10"></div>
           <p className="text-[10px] text-slate-500 font-medium">Mapped to Sequence Arc</p>
         </div>
+
+        {selectedFrame && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] uppercase font-bold text-slate-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
+              <Camera className="size-3 text-primary" />
+              {selectedFrame.shotAngle || selectedFrame.shotType || 'Medium Shot'}
+            </span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
+              <Film className="size-3 text-emerald-400" />
+              {selectedFrame.cameraMotion || 'Pan Right'}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-x-auto overflow-y-hidden flex items-center px-12 gap-12 scroll-smooth custom-scrollbar">
@@ -60,14 +85,25 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
               onClick={(e) => handleImageClick(e, frame.id)}
               className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all cursor-pointer shadow-2xl ${selectedFrameId === frame.id ? 'border-primary ring-8 ring-primary/5' : 'border-white/5'}`}
             >
-              <Image 
-                src={frame.image} 
-                alt={frame.prompt} 
-                fill
-                unoptimized
-                className={`object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} 
-                referrerPolicy="no-referrer"
-              />
+              {frame.videoUrl && frame.videoUrl.endsWith('.mp4') ? (
+                <video 
+                  src={frame.videoUrl} 
+                  controls 
+                  autoPlay 
+                  loop 
+                  muted 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Image 
+                  src={frame.image} 
+                  alt={frame.prompt} 
+                  fill
+                  unoptimized
+                  className={`object-cover transition-transform duration-1000 ${selectedFrameId === frame.id ? 'scale-100' : 'scale-110'}`} 
+                  referrerPolicy="no-referrer"
+                />
+              )}
               
               {selectedFrameId === frame.id && clickCoord && (
                 <div className="absolute size-6 border-2 border-primary rounded-full -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-30" style={{ left: `${clickCoord.x}%`, top: `${clickCoord.y}%` }}>
@@ -75,21 +111,46 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
                 </div>
               )}
 
-              {(frame.isGenerating || frame.isGeneratingAudio) && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center z-40">
+              {(frame.isGenerating || frame.isGeneratingAudio || frame.isGeneratingVideo) && (
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center z-40">
                   <RotateCw className="size-8 text-primary animate-spin mb-3" />
-                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">Processing...</span>
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-[0.2em]">
+                    {frame.isGeneratingVideo ? 'Synthesizing Film Motion...' : frame.isGeneratingAudio ? 'Generating Voiceover...' : 'Processing Frame...'}
+                  </span>
+                </div>
+              )}
+
+              {/* Dialogue Overlay */}
+              {frame.dialogueText && (
+                <div className="absolute top-3 left-3 right-16 z-30 bg-black/75 backdrop-blur-md p-2 rounded-lg border border-white/10">
+                  <span className="text-[9px] font-bold uppercase text-amber-400 block tracking-wider">
+                    {frame.dialogueSpeaker || 'Dialogue'}
+                  </span>
+                  <p className="text-[11px] text-white/90 italic truncate">"{frame.dialogueText}"</p>
                 </div>
               )}
 
               {selectedFrameId === frame.id && !frame.isGenerating && (
                 <>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onPlayAudio(frame.id); }}
-                    className="absolute top-4 right-4 size-10 bg-primary/90 text-obsidian rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform active:scale-95 z-40"
-                  >
-                    <Play className="size-5 fill-current" />
-                  </button>
+                  <div className="absolute top-4 right-4 flex items-center gap-2 z-40">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onPlayAudio(frame.id); }}
+                      className="size-10 bg-primary/90 text-obsidian rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform active:scale-95"
+                      title="Play Dialogue Voiceover"
+                    >
+                      <Play className="size-5 fill-current" />
+                    </button>
+
+                    {onGenerateVideo && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onGenerateVideo(frame.id); }}
+                        className="size-10 bg-emerald-500/90 text-obsidian rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform active:scale-95"
+                        title="Render Video Motion (I2V)"
+                      >
+                        <Video className="size-5 text-obsidian" />
+                      </button>
+                    )}
+                  </div>
 
                   <div className="absolute bottom-6 left-6 right-6 opacity-0 group-hover:opacity-100 transition-all z-40" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-2 bg-black/80 backdrop-blur-xl p-2 rounded-xl border border-white/10 shadow-2xl">
@@ -123,3 +184,4 @@ const VisionStage: React.FC<VisionStageProps> = ({ frames, selectedFrameId, onSe
 };
 
 export default VisionStage;
+

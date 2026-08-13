@@ -20,29 +20,38 @@ const STYLE_BASES: Record<VisualStyle, string> = {
   'Cinematic':
     'Aesthetic: High-fidelity cinematic concept art. Anamorphic lens, real-world proportions, ' +
     'photorealistic textures, professional volumetric lighting with deep shadows and film grain. ' +
-    '8K resolution digital painting. Color graded, practical lighting, atmospheric depth of field.',
+    '8K resolution digital painting. Color graded, practical lighting, atmospheric depth of field. ' +
+    'CRITICAL: NO text, NO words, NO letters, NO subtitles, NO watermarks of any kind in the image.',
 
   'Anime':
-    'Aesthetic: High-quality anime illustration. Crisp cel-shaded line art with bold ink outlines. ' +
-    'Clean, vibrant colors with strong saturation blocks. Large expressive eyes, stylized hair with ' +
-    'individual strand detail, smooth skin. Inspired by modern high-budget anime studios (e.g. MAPPA, Ufotable). ' +
-    'Dramatic speed lines, dynamic posing, intentional flattened perspective.',
+    'Aesthetic: High-quality modern cinematic anime illustration. High-budget digital cel-shaded art. ' +
+    'Widescreen 16:9 cinematic composition. Crisp line art with bold ink outlines. ' +
+    'Clean, vibrant colors with strong saturation. Large expressive eyes, detailed hair, smooth skin. ' +
+    'Inspired by modern studios like MAPPA or Ufotable. Dramatic lighting and atmospheric depth of field. ' +
+    'CRITICAL: Generate ONE SINGLE cinematic frame only. NO manga panels, NO layout grids, NO gutters, ' +
+    'NO speech bubbles, NO text balloons, NO written words, NO dialogue boxes, NO onomatopoeia text, ' +
+    'NO subtitles, NO watermarks. Pure cinematic visual storytelling only.',
 
   'Comic Book':
-    'Aesthetic: Western comic book art. Bold, crisp ink outlines with Ben-Day dot halftone shading. ' +
-    'Strong primary colors and high contrast black shadows. Dynamic, energetic panel composition. ' +
-    'Bold action lines and graphic design elements. Inspired by Marvel and DC house style art.',
+    'Aesthetic: Western comic book art, single-panel cinematic illustration style. NO grids or layouts. ' +
+    'Bold, crisp ink outlines with Ben-Day dot halftone shading. ' +
+    'Strong primary colors and high contrast black shadows. Dynamic, energetic composition. ' +
+    'Bold action lines and graphic design elements. Inspired by modern Marvel/DC cover art. ' +
+    'CRITICAL: Generate ONE SINGLE illustration. NO panel borders, NO grid layouts, NO gutters. ' +
+    'NO speech bubbles, NO text balloons, NO written dialogue, NO captions, NO watermarks.',
 
   'Watercolor':
     'Aesthetic: Expressive watercolor illustration. Soft, translucent washes of color with visible ' +
     'paper texture and pigment blooms. Loose, gestural brushstrokes with ink line-art anchoring. ' +
     'Warm and organic color palette. Impressionistic, slightly dreamlike quality with soft edges ' +
-    'bleeding into white space.',
+    'bleeding into white space. ' +
+    'CRITICAL: NO text, NO words, NO letters, NO watermarks of any kind in the image.',
 
   '3D Render':
     'Aesthetic: High-end 3D CGI render. Photorealistic 3D characters and environments rendered with ' +
     'ray-traced global illumination. Subsurface scattering on skin, physically-based materials. ' +
-    'Inspired by Pixar and DreamWorks feature film quality. Clean, polished surfaces with cinematic depth of field.',
+    'Inspired by Pixar and DreamWorks feature film quality. Clean, polished surfaces with cinematic depth of field. ' +
+    'CRITICAL: NO text, NO words, NO UI overlays, NO watermarks of any kind in the image.',
 };
 
 /**
@@ -57,14 +66,20 @@ const STYLE_BASES: Record<VisualStyle, string> = {
 const GENRE_STYLE_OVERLAYS: Partial<Record<string, string>> = {
 
   // --- ANIME GENRE OVERLAYS ---
-  // Anime comedy is the most nuanced: requires specific manga comedy tropes.
+  // Anime comedy is the most nuanced: requires specific manga comedy tropes expressed
+  // VISUALLY only — absolutely no text, bubbles, or written elements.
   'Anime:Comedy':
-    'GENRE MODIFIER — ANIME COMEDY: Apply exaggerated comedic expressions. Use chibi/super-deformed ' +
-    'style for comedic moments. Include sweat drops (汗), pulsing veins of frustration, ' +
-    'cross-pop eyes for anger/shock, dramatic tsukkomi (straight-man) reaction poses. ' +
-    'Characters can have ridiculously oversized reactions: eyes popping out, jaws dropping to floor, ' +
-    'steam from ears. Use speed lines for comedic rushes. Bright, saturated panel backgrounds. ' +
-    'The art should feel like a high-energy shonen gag scene.',
+    'GENRE MODIFIER — ANIME COMEDY: Express comedy purely through visual acting and character physics. ' +
+    'CRITICAL: Absolutely NO speech bubbles, NO text balloons, NO written sound effects/onomatopoeia, ' +
+    'NO manga panel borders, NO layout grids. The image must be a continuous single frame. ' +
+    'Use classic cinematic anime visual comedy: ' +
+    'chibi/super-deformed proportions for comedic moments (characters shrink to tiny round versions), ' +
+    'massive sweat drops hanging beside heads, cross-shaped forehead veins of frustration, ' +
+    'spiral eyes from shock, jaw literally dropping open wide, eyes bulging out of skull, ' +
+    'steam venting from ears, characters frozen in exaggerated tsukkomi pose. ' +
+    'Backgrounds can flash to bright solid colors or simple geometric patterns to emphasize reactions. ' +
+    'Color palette is extremely bright and saturated. ' +
+    'Composition is 16:9 cinematic widescreen.',
 
   'Anime:Drama':
     'GENRE MODIFIER — ANIME DRAMA: Use detailed, emotionally raw character expressions informed by ' +

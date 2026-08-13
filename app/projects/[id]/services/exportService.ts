@@ -24,13 +24,16 @@ const CORE_BASE_URL = `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
  * Creates a Blob URL for a remote asset.
  */
 async function getAssetAsBlob(url: string, mimeType: string): Promise<string> {
+  console.log(`[FFmpeg] Fetching asset: ${url} (${mimeType})...`);
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Fetch failed: ${url} (${response.status})`);
+    const response = await fetch(url, { mode: 'cors' });
+    if (!response.ok) throw new Error(`Fetch failed with status: ${response.status}`);
     const blob = await response.blob();
-    return URL.createObjectURL(new Blob([blob], { type: mimeType }));
+    const blobUrl = URL.createObjectURL(new Blob([blob], { type: mimeType }));
+    console.log(`[FFmpeg] Asset loaded successfully: ${url} -> ${blobUrl}`);
+    return blobUrl;
   } catch (e) {
-    console.error(`Failed to create blob for ${url}:`, e);
+    console.error(`[FFmpeg] Primary fetch failed for ${url}. Attempting manual conversion fallback...`, e);
     // Fallback to library utility
     return await toBlobURL(url, mimeType);
   }
@@ -71,26 +74,43 @@ async function loadFFmpeg(): Promise<FFmpeg> {
     console.log("Stage 1: Creating same-origin Blobs for FFmpeg assets...");
     
     // We create Blob URLs for EVERYTHING to ensure no cross-origin construction happens
-    const [coreURL, wasmURL, workerURL] = await Promise.all([
+    const assets = await Promise.all([
       getAssetAsBlob(`${CORE_BASE_URL}/ffmpeg-core.js`, 'text/javascript'),
       getAssetAsBlob(`${CORE_BASE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
       getRewrittenWorkerURL(WRAPPER_BASE_URL)
-    ]);
+    ]).catch(err => {
+      console.error("[FFmpeg] Asset loading phase failed critical block:", err);
+      throw err;
+    });
+
+    const [coreURL, wasmURL, workerURL] = assets;
 
     console.log("Stage 2: Initializing FFmpeg with local Blobs...");
     console.log("Worker URL:", workerURL);
+    console.log("WASM URL:", wasmURL);
 
+    // Provide detailed options to help debugging and ensure compatibility
     await ff.load({
       coreURL,
       wasmURL,
       workerURL,
-      // @ts-ignore - Some versions of @ffmpeg/ffmpeg use this key for the worker
+      // Some versions expect this key
+      // @ts-ignore
       classWorkerURL: workerURL
+    }).catch(err => {
+      console.error("[FFmpeg] ff.load() failed. Page may not be correctly Cross-Origin Isolated.", err);
+      throw err;
     });
     
     console.log("Stage 3: FFmpeg ready.");
     return ff;
-  })();
+  })().catch((err) => {
+    // CRITICAL: Clear the cache so the next export attempt can retry loading.
+    // Without this, a single failure permanently kills the export button.
+    console.error("[FFmpeg] Load failed, clearing cache for retry:", err);
+    loadPromise = null;
+    throw err;
+  });
 
   return loadPromise;
 }
@@ -148,74 +168,95 @@ async function getAudioDuration(audioSource: string): Promise<number> {
 
 export const exportCinemaMovie = async (
   frames: Frame[], 
-  onProgress: (progress: number) => void
+  onProgress: (progress: number, stage?: string) => void
 ) => {
   const ff = await loadFFmpeg();
   
+  let currentStage = "Initializing";
+  let currentGlobalProgress = 0;
+  let currentStep = 0;
+  
+  // Weights: 
+  // 0-10%: Loading Assets
+  // 10-90%: Encoding Segments
+  // 90-100%: Mastering Final Movie
+  
   const progressHandler = ({ progress }: { progress: number }) => {
-    onProgress(Math.round(progress * 100));
+    // Standardize the raw progress from FFmpeg (0-1)
+    const normalizedRaw = Math.max(0, Math.min(1, isNaN(progress) || !isFinite(progress) ? 0 : progress));
+    
+    let displayProgress = 0;
+    if (currentStage === "Encoding") {
+      const perSegmentWeight = 80 / validFrames.length;
+      displayProgress = 10 + (currentStep * perSegmentWeight) + (normalizedRaw * perSegmentWeight);
+    } else if (currentStage === "Mastering") {
+      displayProgress = 90 + (normalizedRaw * 10);
+    }
+    
+    onProgress(Math.round(displayProgress), currentStage);
   };
+
   ff.on('progress', progressHandler);
 
+  // 1. Filter out only truly invalid frames (like those in loading state or without any image)
+  const validFrames = frames.filter(f => f.image && !f.image.startsWith('loading://'));
+
   try {
-    // 1. Filter out only truly invalid frames (like those in loading state or without any image)
-    const validFrames = frames.filter(f => f.image && !f.image.startsWith('loading://'));
-    
     if (validFrames.length === 0) {
       const loadingCount = frames.filter(f => f.image?.startsWith('loading://')).length;
       throw new Error(`No synthesized frames found for export. ${loadingCount} frames are still generating images. Please wait for synthesis to complete.`);
     }
 
+    currentStage = "Loading Assets";
+    onProgress(5, currentStage);
     console.log(`[Export] Processing ${validFrames.length} valid frames. (Total frames: ${frames.length})`);
 
     // Write frames to FS
     for (let i = 0; i < validFrames.length; i++) {
       const frame = validFrames[i];
-      
-      // Image
-      const imgBytes = await getFileBytes(frame.image);
-      await ff.writeFile(`img${i}.png`, imgBytes);
-      
-      // Audio (with silent fallback)
-      if (frame.audioData) {
-        let audioBytes: Uint8Array;
-        if (frame.audioData.startsWith('http')) {
-          const res = await fetch(frame.audioData);
-          const buf = await res.arrayBuffer();
-          audioBytes = new Uint8Array(buf);
+      try {
+        // Image
+        const imgBytes = await getFileBytes(frame.image);
+        await ff.writeFile(`img${i}.png`, imgBytes);
+        
+        // Audio (with silent fallback)
+        if (frame.audioData) {
+          const audioBytes = await getFileBytes(frame.audioData);
+          await ff.writeFile(`aud${i}.raw`, audioBytes);
         } else {
-          const audioBinary = atob(frame.audioData);
-          audioBytes = new Uint8Array(audioBinary.length);
-          for (let j = 0; j < audioBinary.length; j++) audioBytes[j] = audioBinary.charCodeAt(j);
+          console.warn(`[Export] Frame ${i} is missing audio. Using silence fallback.`);
+          const silentBytes = new Uint8Array(24000 * 2 * 2); // 2s of silence @ 24kHz 16-bit
+          await ff.writeFile(`aud${i}.raw`, silentBytes);
         }
-        await ff.writeFile(`aud${i}.raw`, audioBytes);
-      } else {
-        console.warn(`[Export] Frame ${i} (${frame.id}) is missing audio. Using 2s silence fallback.`);
-        // Create 2 seconds of silence (24000 samples/sec * 2 bytes/sample for 16-bit)
-        const silentBytes = new Uint8Array(24000 * 2 * 2); 
-        await ff.writeFile(`aud${i}.raw`, silentBytes);
+      } catch (assetErr) {
+        console.error(`[Export] Failed to load assets for frame ${i}:`, assetErr);
+        // We write a small empty file to prevent FFmpeg from hanging on missing input
+        await ff.writeFile(`img${i}.png`, new Uint8Array(0));
+        await ff.writeFile(`aud${i}.raw`, new Uint8Array(0));
       }
+      onProgress(5 + (i / validFrames.length) * 5, currentStage);
     }
 
     const segmentFiles: string[] = [];
+    currentStage = "Encoding";
     
     // Encode individual segments
-    for (let i = 0; i < validFrames.length; i++) {
-      const frame = validFrames[i];
-      // If no audioData, use 2.0s as duration for the silent segment
+    for (let j = 0; j < validFrames.length; j++) {
+      currentStep = j;
+      const frame = validFrames[j];
       const duration = frame.audioData ? await getAudioDuration(frame.audioData) : 2.0;
-      const outName = `seg${i}.mp4`;
+      const outName = `seg${j}.mp4`;
       
-      console.log(`[Export] Encoding segment ${i} (Duration: ${duration.toFixed(2)}s)...`);
+      console.log(`[Export] Encoding segment ${j}/${validFrames.length} (Duration: ${duration.toFixed(2)}s)...`);
       
       await ff.exec([
         '-loop', '1',
         '-t', duration.toFixed(3),
-        '-i', `img${i}.png`,
+        '-i', `img${j}.png`,
         '-f', 's16le',
         '-ar', '24000',
         '-ac', '1',
-        '-i', `aud${i}.raw`,
+        '-i', `aud${j}.raw`,
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-b:a', '128k',
@@ -223,9 +264,17 @@ export const exportCinemaMovie = async (
         '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
         outName
       ]);
+      
+      // Immediate cleanup of raw assets to save WASM memory
+      await ff.deleteFile(`img${j}.png`).catch(() => {});
+      await ff.deleteFile(`aud${j}.raw`).catch(() => {});
+      
       segmentFiles.push(outName);
     }
 
+    currentStage = "Mastering";
+    onProgress(90, currentStage);
+    
     // Concatenate segments
     const concatList = segmentFiles.map(name => `file ${name}`).join('\n');
     await ff.writeFile('list.txt', concatList);
@@ -241,20 +290,22 @@ export const exportCinemaMovie = async (
     const data = await ff.readFile('output.mp4');
     const url = URL.createObjectURL(new Blob([data as any], { type: 'video/mp4' }));
     
-    // Post-export cleanup
+    // Final cleanup
     try {
-      for (let i = 0; i < validFrames.length; i++) {
-        await ff.deleteFile(`img${i}.png`);
-        await ff.deleteFile(`aud${i}.raw`);
-        await ff.deleteFile(`seg${i}.mp4`);
-      }
-      await ff.deleteFile('list.txt');
-      await ff.deleteFile('output.mp4');
+      for (const seg of segmentFiles) await ff.deleteFile(seg).catch(() => {});
+      await ff.deleteFile('list.txt').catch(() => {});
+      await ff.deleteFile('output.mp4').catch(() => {});
     } catch (e) {
-      console.warn("FS cleanup issue:", e);
+      console.warn("[Export] Final FS cleanup issue:", e);
     }
 
+    currentStage = "Complete";
+    onProgress(100, currentStage);
     return url;
+
+  } catch (err: any) {
+    console.error("[Export] Critical error during movie generation:", err);
+    throw err;
   } finally {
     ff.off('progress', progressHandler);
   }
