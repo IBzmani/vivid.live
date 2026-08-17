@@ -13,6 +13,8 @@ interface VisionStageProps {
   onPlayAudio: (id: string) => void;
   onGenerateVideo?: (id: string) => void;
   onAppendFrame: () => void;
+  credits?: number;
+  onOpenPricing?: (tab?: 'plans' | 'topup') => void;
 }
 
 const VisionStage: React.FC<VisionStageProps> = ({ 
@@ -22,7 +24,9 @@ const VisionStage: React.FC<VisionStageProps> = ({
   onRefine, 
   onPlayAudio, 
   onGenerateVideo,
-  onAppendFrame 
+  onAppendFrame,
+  credits = 30,
+  onOpenPricing
 }) => {
   const [instruction, setInstruction] = useState("");
   const [clickCoord, setClickCoord] = useState<{ x: number, y: number } | null>(null);
@@ -143,11 +147,21 @@ const VisionStage: React.FC<VisionStageProps> = ({
 
                     {onGenerateVideo && (
                       <button 
-                        onClick={(e) => { e.stopPropagation(); onGenerateVideo(frame.id); }}
-                        className="size-10 bg-emerald-500/90 text-obsidian rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform active:scale-95"
-                        title="Render Video Motion (I2V)"
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          if (credits < 35 && onOpenPricing) {
+                            onOpenPricing('topup');
+                          } else {
+                            onGenerateVideo(frame.id); 
+                          }
+                        }}
+                        className="group/btn relative size-10 bg-emerald-500/90 text-obsidian rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform active:scale-95"
+                        title={credits < 35 ? "Insufficient credits (Requires 35 Credits)" : "Render Video Motion (35 Credits)"}
                       >
                         <Video className="size-5 text-obsidian" />
+                        <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/90 text-emerald-300 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover/btn:opacity-100 transition-opacity whitespace-nowrap border border-emerald-500/30 pointer-events-none">
+                          ⚡ 35 Credits
+                        </span>
                       </button>
                     )}
                   </div>

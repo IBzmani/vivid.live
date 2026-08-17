@@ -37,6 +37,10 @@ import {
   uploadToGCS
 } from './services/geminiService';
 import { exportCinemaMovie } from './services/exportService';
+import PricingModal from '@/components/PricingModal';
+import VaultPauseModal from '@/components/VaultPauseModal';
+import { SUBSCRIPTION_PLANS, PlanTier } from '@/lib/plans';
+import { UserCreditProfile } from '@/lib/credits';
 
 export default function ProjectPage() {
   const params = useParams();
@@ -48,9 +52,33 @@ export default function ProjectPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [exportStage, setExportStage] = useState('');
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [synthImages, setSynthImages] = useState<Record<string, string>>({});
+
+  // Billing & Credit State
+  const [creditProfile, setCreditProfile] = useState<UserCreditProfile | null>(null);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [pricingTab, setPricingTab] = useState<'plans' | 'topup'>('plans');
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
+
+  const fetchCredits = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const res = await fetch(`/api/credits/balance?userId=${user.uid}&email=${encodeURIComponent(user.email || '')}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCreditProfile(data);
+      }
+    } catch (err) {
+      console.warn("Could not fetch credits:", err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchCredits();
+  }, [fetchCredits]);
 
   // Firestore Retry Helper
   const withFirestoreRetry = async <T extends unknown>(fn: () => Promise<T>, maxRetries = 3): Promise<T> => {
@@ -770,9 +798,6 @@ export default function ProjectPage() {
     }
   };
 
-
-  const [exportStage, setExportStage] = useState<string>("");
-
   const handleExportMovie = async () => {
     if (isExporting) return;
     
@@ -782,16 +807,27 @@ export default function ProjectPage() {
       return;
     }
 
-    console.log(`[Vivid] Starting Cinema Export for ${validFrames.length} frames...`);
+    const tier = creditProfile?.tier || 'free';
+    const plan = SUBSCRIPTION_PLANS[tier] || SUBSCRIPTION_PLANS.free;
+
+    console.log(`[Vivid] Starting Cinema Export for ${validFrames.length} frames (${plan.maxResolution}, Watermarked: ${plan.watermarked})...`);
     setIsExporting(true);
     setExportProgress(0);
     setExportStage("Initializing FFmpeg...");
 
     try {
-      const url = await exportCinemaMovie(scene.frames, (progress, stage) => {
-        setExportProgress(Math.min(100, progress));
-        if (stage) setExportStage(stage);
-      });
+      const url = await exportCinemaMovie(
+        scene.frames, 
+        (progress, stage) => {
+          setExportProgress(Math.min(100, progress));
+          if (stage) setExportStage(stage);
+        },
+        {
+          resolution: plan.maxResolution,
+          watermarked: plan.watermarked,
+          chunkSize: 8
+        }
+      );
       if (url) {
         const a = document.createElement('a');
         a.href = url;
@@ -823,6 +859,16 @@ export default function ProjectPage() {
     const frame = scene.frames.find(f => f.id === frameId);
     if (!frame || !frame.image || frame.image.startsWith('loading://')) return;
 
+    const tier = creditProfile?.tier || 'free';
+    const plan = SUBSCRIPTION_PLANS[tier] || SUBSCRIPTION_PLANS.free;
+    const currentCredits = creditProfile?.totalCredits ?? 0;
+
+    if (currentCredits < 35) {
+      setPricingTab('topup');
+      setIsPricingOpen(true);
+      return;
+    }
+
     try {
       setScene(prev => ({
         ...prev,
@@ -834,7 +880,9 @@ export default function ProjectPage() {
         frame.image,
         frame.prompt,
         frame.cameraMotion,
-        frame.shotAngle || frame.shotType
+        frame.shotAngle || frame.shotType,
+        user?.uid,
+        plan.maxResolution === '4K' ? '1080p' : '720p'
       );
 
       if (videoUrl) {
@@ -843,9 +891,14 @@ export default function ProjectPage() {
           frames: prev.frames.map(f => f.id === frameId ? { ...f, videoUrl, isGeneratingVideo: false } : f)
         }));
         await updateDoc(doc(db, 'projects', projectId, 'frames', frameId), { videoUrl });
+        await fetchCredits();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Video motion generation failed:', err);
+      if (err.message?.includes('INSUFFICIENT_CREDITS') || err.message?.includes('402')) {
+        setPricingTab('topup');
+        setIsPricingOpen(true);
+      }
     } finally {
       setScene(prev => ({
         ...prev,
@@ -860,7 +913,13 @@ export default function ProjectPage() {
         onGenerate={handleGenerateStoryboard} 
         onExport={handleExportMovie} 
         isGenerating={isGenerating} 
-        isExporting={isExporting} 
+        isExporting={isExporting}
+        credits={creditProfile?.totalCredits ?? 30}
+        tier={creditProfile?.tier ?? 'free'}
+        onOpenPricing={(tab) => {
+          setPricingTab(tab || 'plans');
+          setIsPricingOpen(true);
+        }}
       />
       <main className="flex flex-1 overflow-hidden">
         <SidebarScript 
@@ -890,7 +949,12 @@ export default function ProjectPage() {
           onRefine={handlePaintToEdit} 
           onPlayAudio={handleSynthesizeAudio} 
           onGenerateVideo={handleGenerateVideoMotion}
-          onAppendFrame={appendFrame} 
+          onAppendFrame={appendFrame}
+          credits={creditProfile?.totalCredits ?? 30}
+          onOpenPricing={(tab) => {
+            setPricingTab(tab || 'topup');
+            setIsPricingOpen(true);
+          }}
         />
         <WorldBible 
           manifest={mergedManifest} 
@@ -908,7 +972,7 @@ export default function ProjectPage() {
         shotType={selectedFrame?.shotType} 
       />
       
-        <CoCreatorAgent 
+      <CoCreatorAgent 
         script={scene.script}
         manifest={mergedManifest}
         genre={scene.genre}
@@ -925,8 +989,23 @@ export default function ProjectPage() {
       >
         <ArrowLeft className="size-5 text-slate-400 group-hover:text-white" />
       </button>
-      
 
+      {/* Pricing & Upgrade Modal */}
+      <PricingModal 
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
+        currentTier={creditProfile?.tier || 'free'}
+        initialTab={pricingTab}
+        onSuccess={fetchCredits}
+      />
+
+      {/* Churn Prevention Project Vault Modal */}
+      <VaultPauseModal
+        isOpen={isVaultOpen}
+        onClose={() => setIsVaultOpen(false)}
+        currency={creditProfile?.currency || 'USD'}
+        onSuccess={fetchCredits}
+      />
 
       <AnimatePresence>
         {isExporting && (
@@ -954,3 +1033,4 @@ export default function ProjectPage() {
     </div>
   );
 }
+

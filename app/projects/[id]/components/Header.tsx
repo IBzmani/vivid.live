@@ -2,16 +2,28 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Search, Film, RotateCw, Zap, Settings, Bell } from 'lucide-react';
+import { Search, Film, RotateCw, Zap, Settings, Bell, Coins, Sparkles } from 'lucide-react';
+import { PlanTier } from '@/lib/plans';
 
 interface HeaderProps {
   onGenerate: () => void;
   onExport: () => void;
   isGenerating: boolean;
   isExporting: boolean;
+  credits?: number;
+  tier?: PlanTier;
+  onOpenPricing?: (tab?: 'plans' | 'topup') => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onGenerate, onExport, isGenerating, isExporting }) => {
+const Header: React.FC<HeaderProps> = ({ 
+  onGenerate, 
+  onExport, 
+  isGenerating, 
+  isExporting,
+  credits = 30,
+  tier = 'free',
+  onOpenPricing
+}) => {
   return (
     <header className="flex items-center justify-between h-14 border-b border-white/5 px-6 bg-obsidian z-20">
       <div className="flex items-center gap-6">
@@ -24,15 +36,43 @@ const Header: React.FC<HeaderProps> = ({ onGenerate, onExport, isGenerating, isE
         <div className="h-6 w-px bg-white/10"></div>
         <nav className="flex items-center gap-6">
           <a className="text-primary text-sm font-medium border-b-2 border-primary pb-4 pt-4" href="#">Workspace</a>
-          <a className="text-slate-400 text-sm font-medium hover:text-white transition-colors" href="#">Library</a>
-          <a className="text-slate-400 text-sm font-medium hover:text-white transition-colors" href="#">Collaborators</a>
+          <Link href="/dashboard" className="text-slate-400 text-sm font-medium hover:text-white transition-colors">Projects</Link>
         </nav>
       </div>
+
       <div className="flex items-center gap-4">
-        <div className="flex items-center bg-white/5 rounded-lg px-3 py-1.5 gap-2 border border-white/5">
+        {/* Credit Counter Pill */}
+        {onOpenPricing && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onOpenPricing('topup')}
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 via-white/5 to-white/5 hover:from-amber-500/20 px-3 py-1.5 rounded-lg border border-amber-500/30 text-xs font-bold transition-all shadow-sm group"
+              title="Click to refill credits or upgrade"
+            >
+              <Coins className="size-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="text-white font-mono">{credits.toLocaleString()}</span>
+              <span className="text-[10px] text-slate-400 font-sans uppercase">Credits</span>
+              <span className="size-4 rounded bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-black leading-none ml-1 group-hover:bg-amber-400 group-hover:text-obsidian transition-colors">
+                +
+              </span>
+            </button>
+
+            {tier === 'free' && (
+              <button
+                onClick={() => onOpenPricing('plans')}
+                className="hidden sm:flex items-center gap-1.5 bg-primary/15 text-primary border border-primary/30 px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase hover:bg-primary hover:text-obsidian transition-all"
+              >
+                <Sparkles className="size-3" />
+                <span>Upgrade</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="hidden lg:flex items-center bg-white/5 rounded-lg px-3 py-1.5 gap-2 border border-white/5">
           <Search className="text-slate-400 size-4" />
           <input 
-            className="bg-transparent border-none focus:ring-0 text-sm w-48 placeholder:text-slate-500 text-white" 
+            className="bg-transparent border-none focus:ring-0 text-sm w-36 placeholder:text-slate-500 text-white" 
             placeholder="Search project..." 
             type="text"
           />
@@ -59,22 +99,22 @@ const Header: React.FC<HeaderProps> = ({ onGenerate, onExport, isGenerating, isE
           )}
           <span>{isGenerating ? 'Generating...' : 'Generate Scene'}</span>
         </button>
+
         <div className="flex gap-1">
-          <button className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all">
-            <Settings className="size-5" />
-          </button>
-          <button className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all relative">
-            <Bell className="size-5" />
-            <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border border-obsidian"></span>
-          </button>
+          {onOpenPricing && (
+            <button 
+              onClick={() => onOpenPricing('plans')}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+              title="Plans & Billing"
+            >
+              <Settings className="size-5" />
+            </button>
+          )}
         </div>
-        <div 
-          className="size-8 rounded-full bg-cover bg-center border border-white/10 cursor-pointer" 
-          style={{ backgroundImage: "url('https://picsum.photos/id/64/100/100')" }}
-        ></div>
       </div>
     </header>
   );
 };
 
 export default Header;
+

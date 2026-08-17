@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
+import { deductCredits } from '@/lib/credits';
+import { ACTION_COSTS } from '@/lib/plans';
 
 // Logic-Only Route: partitioning the script into frames
 export const maxDuration = 300;
@@ -32,7 +34,24 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { script, manifest, genre, visualStyle } = await req.json();
+    const { script, manifest, genre, visualStyle, userId } = await req.json();
+
+    if (userId) {
+      const deduction = await deductCredits(
+        userId, 
+        ACTION_COSTS.SCRIPT_BREAKDOWN, 
+        'Script Decomposition & Directing Sequence Analysis',
+        { genre, visualStyle }
+      );
+
+      if (!deduction.success) {
+        return NextResponse.json({ 
+          error: 'Insufficient credits for script breakdown. Please upgrade or refill credits.',
+          code: 'INSUFFICIENT_CREDITS',
+          requiredCredits: ACTION_COSTS.SCRIPT_BREAKDOWN 
+        }, { status: 402 });
+      }
+    }
 
     const charList = manifest.characters.map((c: any) => `${c.name} (ID: ${c.id})`).join(', ');
     const envList = manifest.environments.map((e: any) => `${e.name} (ID: ${e.id})`).join(', ');

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { getStyleGuide } from '@/lib/prompts';
+import { deductCredits } from '@/lib/credits';
+import { ACTION_COSTS } from '@/lib/plans';
 
 // 1. Instance for Gemini 3.1 (Global)
 const globalAi = new GoogleGenAI({
@@ -41,7 +43,29 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, description, type, genre, visualStyle } = await req.json();
+    const { name, description, type, genre, visualStyle, userId } = await req.json();
+
+    const requiredCredits = type === 'character' 
+      ? ACTION_COSTS.CHARACTER_TURNAROUND_DNA 
+      : ACTION_COSTS.LOCATION_MASTER_PLATE;
+
+    if (userId) {
+      const deduction = await deductCredits(
+        userId, 
+        requiredCredits, 
+        `Synthesize Production Bible Asset (${type}: ${name})`,
+        { name, type, genre }
+      );
+
+      if (!deduction.success) {
+        return NextResponse.json({ 
+          error: `Insufficient credits to generate ${type} asset. Required: ${requiredCredits} credits.`,
+          code: 'INSUFFICIENT_CREDITS',
+          requiredCredits 
+        }, { status: 402 });
+      }
+    }
+
     const STYLE_GUIDE = getStyleGuide(visualStyle ?? 'Cinematic', genre ?? 'Drama');
 
     const prompt = type === 'character'

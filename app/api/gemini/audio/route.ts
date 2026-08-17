@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Modality } from '@google/genai';
+import { deductCredits } from '@/lib/credits';
+import { ACTION_COSTS } from '@/lib/plans';
 
 const ai = new GoogleGenAI({
   vertexai: true,
@@ -31,7 +33,24 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, brief, genre, voice, language } = await req.json();
+    const { text, brief, genre, voice, language, userId } = await req.json();
+
+    if (userId) {
+      const deduction = await deductCredits(
+        userId, 
+        ACTION_COSTS.DIALOGUE_VOICEOVER, 
+        'Synthesize Emotional Voiceover Audio',
+        { voice, genre }
+      );
+
+      if (!deduction.success) {
+        return NextResponse.json({ 
+          error: 'Insufficient credits for voiceover audio.',
+          code: 'INSUFFICIENT_CREDITS',
+          requiredCredits: ACTION_COSTS.DIALOGUE_VOICEOVER 
+        }, { status: 402 });
+      }
+    }
 
     const isDialogue = /[:""].*?[""]/.test(text) || text.includes('"') || text.includes("'");
     let voiceName: string = voice || 'Charon';

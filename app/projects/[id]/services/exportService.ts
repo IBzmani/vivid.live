@@ -166,110 +166,116 @@ async function getAudioDuration(audioSource: string): Promise<number> {
   }
 }
 
+export interface ExportOptions {
+  resolution?: '720p' | '1080p' | '4K';
+  watermarked?: boolean;
+  chunkSize?: number;
+}
+
 export const exportCinemaMovie = async (
   frames: Frame[], 
-  onProgress: (progress: number, stage?: string) => void
+  onProgress: (progress: number, stage?: string) => void,
+  options: ExportOptions = {}
 ) => {
+  const { resolution = '1080p', watermarked = false, chunkSize = 8 } = options;
   const ff = await loadFFmpeg();
   
   let currentStage = "Initializing";
-  let currentGlobalProgress = 0;
   let currentStep = 0;
   
-  // Weights: 
-  // 0-10%: Loading Assets
-  // 10-90%: Encoding Segments
-  // 90-100%: Mastering Final Movie
-  
+  // Resolution scaling configurations
+  const scaleFilter = resolution === '4K' 
+    ? 'scale=3840:2160:force_original_aspect_ratio=decrease,pad=3840:2160:(ow-iw)/2:(oh-ih)/2'
+    : resolution === '720p'
+    ? 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2'
+    : 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2';
+
+  // 1. Filter out only valid frames
+  const validFrames = frames.filter(f => f.image && !f.image.startsWith('loading://'));
+
   const progressHandler = ({ progress }: { progress: number }) => {
-    // Standardize the raw progress from FFmpeg (0-1)
     const normalizedRaw = Math.max(0, Math.min(1, isNaN(progress) || !isFinite(progress) ? 0 : progress));
-    
     let displayProgress = 0;
     if (currentStage === "Encoding") {
-      const perSegmentWeight = 80 / validFrames.length;
-      displayProgress = 10 + (currentStep * perSegmentWeight) + (normalizedRaw * perSegmentWeight);
+      const perSegmentWeight = 85 / Math.max(1, validFrames.length);
+      displayProgress = 5 + (currentStep * perSegmentWeight) + (normalizedRaw * perSegmentWeight);
     } else if (currentStage === "Mastering") {
       displayProgress = 90 + (normalizedRaw * 10);
     }
-    
     onProgress(Math.round(displayProgress), currentStage);
   };
 
   ff.on('progress', progressHandler);
 
-  // 1. Filter out only truly invalid frames (like those in loading state or without any image)
-  const validFrames = frames.filter(f => f.image && !f.image.startsWith('loading://'));
-
   try {
     if (validFrames.length === 0) {
       const loadingCount = frames.filter(f => f.image?.startsWith('loading://')).length;
-      throw new Error(`No synthesized frames found for export. ${loadingCount} frames are still generating images. Please wait for synthesis to complete.`);
+      throw new Error(`No synthesized frames found for export. ${loadingCount} frames are still generating images.`);
     }
 
-    currentStage = "Loading Assets";
+    currentStage = "Encoding";
     onProgress(5, currentStage);
-    console.log(`[Export] Processing ${validFrames.length} valid frames. (Total frames: ${frames.length})`);
-
-    // Write frames to FS
-    for (let i = 0; i < validFrames.length; i++) {
-      const frame = validFrames[i];
-      try {
-        // Image
-        const imgBytes = await getFileBytes(frame.image);
-        await ff.writeFile(`img${i}.png`, imgBytes);
-        
-        // Audio (with silent fallback)
-        if (frame.audioData) {
-          const audioBytes = await getFileBytes(frame.audioData);
-          await ff.writeFile(`aud${i}.raw`, audioBytes);
-        } else {
-          console.warn(`[Export] Frame ${i} is missing audio. Using silence fallback.`);
-          const silentBytes = new Uint8Array(24000 * 2 * 2); // 2s of silence @ 24kHz 16-bit
-          await ff.writeFile(`aud${i}.raw`, silentBytes);
-        }
-      } catch (assetErr) {
-        console.error(`[Export] Failed to load assets for frame ${i}:`, assetErr);
-        // We write a small empty file to prevent FFmpeg from hanging on missing input
-        await ff.writeFile(`img${i}.png`, new Uint8Array(0));
-        await ff.writeFile(`aud${i}.raw`, new Uint8Array(0));
-      }
-      onProgress(5 + (i / validFrames.length) * 5, currentStage);
-    }
+    console.log(`[Export] Processing ${validFrames.length} valid frames in chunk size of ${chunkSize}. Resolution: ${resolution}, Watermarked: ${watermarked}`);
 
     const segmentFiles: string[] = [];
-    currentStage = "Encoding";
-    
-    // Encode individual segments
+
+    // 2. Process frames in memory-safe chunks (prevent 1.5GB ArrayBuffer browser ceiling crash)
     for (let j = 0; j < validFrames.length; j++) {
       currentStep = j;
       const frame = validFrames[j];
-      const duration = frame.audioData ? await getAudioDuration(frame.audioData) : 2.0;
-      const outName = `seg${j}.mp4`;
-      
-      console.log(`[Export] Encoding segment ${j}/${validFrames.length} (Duration: ${duration.toFixed(2)}s)...`);
-      
+      const outName = `seg_${j}.mp4`;
+      const imgFileName = `temp_img_${j}.png`;
+      const audFileName = `temp_aud_${j}.raw`;
+
+      // Fetch and write ONLY this frame's assets to virtual FS
+      try {
+        const imgBytes = await getFileBytes(frame.image);
+        await ff.writeFile(imgFileName, imgBytes);
+
+        if (frame.audioData) {
+          const audioBytes = await getFileBytes(frame.audioData);
+          await ff.writeFile(audFileName, audioBytes);
+        } else {
+          const silentBytes = new Uint8Array(24000 * 2 * 2); // 2s of silence @ 24kHz 16-bit
+          await ff.writeFile(audFileName, silentBytes);
+        }
+      } catch (assetErr) {
+        console.error(`[Export] Asset fetch failed for frame ${j}:`, assetErr);
+        await ff.writeFile(imgFileName, new Uint8Array(0));
+        await ff.writeFile(audFileName, new Uint8Array(0));
+      }
+
+      const duration = frame.audioData ? await getAudioDuration(frame.audioData) : 2.5;
+      console.log(`[Export] Chunk Encoding segment ${j + 1}/${validFrames.length} (${duration.toFixed(2)}s)...`);
+
+      // Video filter with optional watermark overlay text
+      const vfParam = watermarked
+        ? `${scaleFilter},drawbox=x=w-260:y=h-48:w=250:h=36:color=black@0.65:t=fill,drawtext=text='Created with Vivid.live':x=w-250:y=h-28:fontsize=16:fontcolor=white@0.85`
+        : scaleFilter;
+
       await ff.exec([
         '-loop', '1',
         '-t', duration.toFixed(3),
-        '-i', `img${j}.png`,
+        '-i', imgFileName,
         '-f', 's16le',
         '-ar', '24000',
         '-ac', '1',
-        '-i', `aud${j}.raw`,
+        '-i', audFileName,
         '-c:v', 'libx264',
+        '-preset', 'ultrafast',
         '-c:a', 'aac',
         '-b:a', '128k',
         '-pix_fmt', 'yuv420p',
-        '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+        '-vf', vfParam,
         outName
       ]);
-      
-      // Immediate cleanup of raw assets to save WASM memory
-      await ff.deleteFile(`img${j}.png`).catch(() => {});
-      await ff.deleteFile(`aud${j}.raw`).catch(() => {});
-      
+
+      // CRITICAL: Immediate memory cleanup of raw frame byte buffers
+      await ff.deleteFile(imgFileName).catch(() => {});
+      await ff.deleteFile(audFileName).catch(() => {});
+
       segmentFiles.push(outName);
+      onProgress(Math.round(5 + ((j + 1) / validFrames.length) * 85), `Encoding Shot ${j + 1}/${validFrames.length}`);
     }
 
     currentStage = "Mastering";
@@ -277,26 +283,26 @@ export const exportCinemaMovie = async (
     
     // Concatenate segments
     const concatList = segmentFiles.map(name => `file ${name}`).join('\n');
-    await ff.writeFile('list.txt', concatList);
+    await ff.writeFile('concat_list.txt', concatList);
 
     await ff.exec([
       '-f', 'concat',
       '-safe', '0',
-      '-i', 'list.txt',
+      '-i', 'concat_list.txt',
       '-c', 'copy',
-      'output.mp4'
+      'master_movie.mp4'
     ]);
 
-    const data = await ff.readFile('output.mp4');
+    const data = await ff.readFile('master_movie.mp4');
     const url = URL.createObjectURL(new Blob([data as any], { type: 'video/mp4' }));
     
-    // Final cleanup
+    // Final memory cleanup
     try {
       for (const seg of segmentFiles) await ff.deleteFile(seg).catch(() => {});
-      await ff.deleteFile('list.txt').catch(() => {});
-      await ff.deleteFile('output.mp4').catch(() => {});
+      await ff.deleteFile('concat_list.txt').catch(() => {});
+      await ff.deleteFile('master_movie.mp4').catch(() => {});
     } catch (e) {
-      console.warn("[Export] Final FS cleanup issue:", e);
+      console.warn("[Export] Final cleanup:", e);
     }
 
     currentStage = "Complete";
@@ -310,3 +316,4 @@ export const exportCinemaMovie = async (
     ff.off('progress', progressHandler);
   }
 };
+

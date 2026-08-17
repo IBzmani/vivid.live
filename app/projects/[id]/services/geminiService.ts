@@ -78,9 +78,10 @@ export const generateBibleAsset = async (
   description: string,
   type: 'character' | 'environment',
   genre: Genre,
-  visualStyle: VisualStyle
+  visualStyle: VisualStyle,
+  userId?: string
 ): Promise<string | null> => {
-  const data = await post<{ imageUrl: string | null }>('/api/gemini/bible-asset', { name, description, type, genre, visualStyle });
+  const data = await post<{ imageUrl: string | null }>('/api/gemini/bible-asset', { name, description, type, genre, visualStyle, userId });
   return data.imageUrl;
 };
 
@@ -92,9 +93,10 @@ export const generateStoryboard = async (
   script: string,
   manifest: VisualManifest,
   genre: Genre,
-  visualStyle: VisualStyle
+  visualStyle: VisualStyle,
+  userId?: string
 ): Promise<{ frames: any[] }> => {
-  const data = await post<{ frames: any[] }>('/api/gemini/storyboard', { script, manifest, genre, visualStyle });
+  const data = await post<{ frames: any[] }>('/api/gemini/storyboard', { script, manifest, genre, visualStyle, userId });
   return data;
 };
 
@@ -105,7 +107,8 @@ export const generateNanoBananaImage = async (
   genre: Genre,
   visualStyle: VisualStyle,
   baseImage?: string,
-  clickCoord?: { x: number; y: number }
+  clickCoord?: { x: number; y: number },
+  userId?: string
 ): Promise<string | null> => {
   let baseImageData: string | undefined;
   let baseImageMime: string | undefined;
@@ -125,6 +128,7 @@ export const generateNanoBananaImage = async (
     clickCoord,
     genre,
     visualStyle,
+    userId,
   });
   
   return data.imageUrl;
@@ -135,7 +139,8 @@ export const generateEmotionalAudio = async (
   brief: string,
   genre: Genre,
   voice?: VoiceName,
-  language?: string
+  language?: string,
+  userId?: string
 ): Promise<string | null> => {
   const data = await post<{ audioData: string | null }>('/api/gemini/audio', {
     text,
@@ -143,6 +148,7 @@ export const generateEmotionalAudio = async (
     genre,
     voice,
     language,
+    userId,
   });
   return data.audioData;
 };
@@ -152,7 +158,8 @@ export const generateDialogueAudio = async (
   speakerName?: string,
   voice?: VoiceName,
   genre?: Genre,
-  language?: string
+  language?: string,
+  userId?: string
 ): Promise<{ audioUrl: string | null; audioData: string | null }> => {
   return post<{ audioUrl: string | null; audioData: string | null }>('/api/audio/dialogue', {
     dialogueText,
@@ -160,6 +167,7 @@ export const generateDialogueAudio = async (
     voice,
     genre,
     language,
+    userId,
   });
 };
 
@@ -167,13 +175,17 @@ export const generateVideoMotion = async (
   imageUrl: string,
   prompt: string,
   cameraMotion?: string,
-  shotAngle?: string
+  shotAngle?: string,
+  userId?: string,
+  resolution: '720p' | '1080p' = '720p'
 ): Promise<{ videoUrl: string | null; motionPrompt: string }> => {
   return post<{ videoUrl: string | null; motionPrompt: string }>('/api/video/motion', {
     imageUrl,
     prompt,
     cameraMotion,
     shotAngle,
+    userId,
+    resolution,
   });
 };
 
@@ -189,4 +201,5 @@ export const chatWithCoCreator = async (
   });
   return data.text;
 };
+
 

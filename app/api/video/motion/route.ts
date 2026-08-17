@@ -1,14 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadBase64ToGCS } from '@/lib/gcs';
+import { deductCredits } from '@/lib/credits';
+import { ACTION_COSTS } from '@/lib/plans';
 
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, prompt, cameraMotion, shotAngle } = await req.json();
+    const { imageUrl, prompt, cameraMotion, shotAngle, userId, resolution = '720p' } = await req.json();
 
     if (!imageUrl) {
       return NextResponse.json({ error: 'imageUrl is required for Image-to-Video motion generation' }, { status: 400 });
+    }
+
+    const requiredCredits = resolution === '1080p' 
+      ? ACTION_COSTS.VIDEO_MOTION_1080P 
+      : ACTION_COSTS.VIDEO_MOTION_720P;
+
+    // Deduct credits if userId is supplied
+    if (userId) {
+      const deduction = await deductCredits(
+        userId, 
+        requiredCredits, 
+        `Render 5s ${resolution} Video Motion (Wan 2.1)`,
+        { resolution, cameraMotion }
+      );
+
+      if (!deduction.success) {
+        return NextResponse.json({ 
+          error: 'Insufficient credits for Video Motion generation. Please upgrade or purchase a top-up pack.',
+          code: 'INSUFFICIENT_CREDITS',
+          requiredCredits 
+        }, { status: 402 });
+      }
     }
 
     const motionPrompt = `${prompt || 'Cinematic movement'}. Camera movement: ${cameraMotion || 'Cinematic Pan'}. Shot framing: ${shotAngle || 'Medium Shot'}. Smooth realistic physics, high detail film motion.`;

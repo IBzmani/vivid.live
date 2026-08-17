@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { uploadBase64ToGCS } from '@/lib/gcs';
 import { getStyleGuide } from '@/lib/prompts';
+import { deductCredits } from '@/lib/credits';
+import { ACTION_COSTS } from '@/lib/plans';
 
 // GLOBAL Instance: Dedicated to Frontier Multimodal Models (Nano Banana 2)
 const globalAi = new GoogleGenAI({
@@ -64,7 +66,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { prompt, manifest, references, baseImageData, baseImageMime, clickCoord, genre, visualStyle } = await req.json();
+    const { prompt, manifest, references, baseImageData, baseImageMime, clickCoord, genre, visualStyle, userId } = await req.json();
+
+    // Deduct credits if userId is supplied
+    if (userId) {
+      const deduction = await deductCredits(
+        userId, 
+        ACTION_COSTS.STORYBOARD_KEYFRAME, 
+        'Synthesize Storyboard Keyframe Image',
+        { prompt: prompt?.substring(0, 80), genre, visualStyle }
+      );
+
+      if (!deduction.success) {
+        return NextResponse.json({ 
+          error: 'Insufficient credits to generate keyframe image. Please upgrade or purchase top-up credits.',
+          code: 'INSUFFICIENT_CREDITS',
+          requiredCredits: ACTION_COSTS.STORYBOARD_KEYFRAME
+        }, { status: 402 });
+      }
+    }
+
     const STYLE_GUIDE = getStyleGuide(visualStyle ?? 'Cinematic', genre ?? 'Drama');
     const parts: any[] = [];
 

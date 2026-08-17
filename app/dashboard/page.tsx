@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   collection, 
@@ -25,9 +25,12 @@ import {
   Search,
   LayoutGrid,
   List as ListIcon,
-  Loader2
+  Loader2,
+  Coins
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PricingModal from '@/components/PricingModal';
+import { UserCreditProfile } from '@/lib/credits';
 
 interface Project {
   id: string;
@@ -44,6 +47,28 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Billing & Credit State
+  const [creditProfile, setCreditProfile] = useState<UserCreditProfile | null>(null);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [pricingTab, setPricingTab] = useState<'plans' | 'topup'>('plans');
+
+  const fetchCredits = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const res = await fetch(`/api/credits/balance?userId=${user.uid}&email=${encodeURIComponent(user.email || '')}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCreditProfile(data);
+      }
+    } catch (err) {
+      console.warn("Could not fetch credits:", err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchCredits();
+  }, [fetchCredits]);
 
   useEffect(() => {
     if (!user) return;
@@ -113,7 +138,7 @@ export default function DashboardPage() {
       <div className="film-grain opacity-20"></div>
       
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-obsidian/80 backdrop-blur-xl border-bottom border-white/5 px-8 py-4">
+      <header className="sticky top-0 z-50 bg-obsidian/80 backdrop-blur-xl border-b border-white/5 px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="size-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary border border-primary/30">
@@ -125,10 +150,35 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-              <img src={user?.photoURL || ''} alt="" className="size-6 rounded-full border border-primary/30" />
-              <span className="text-xs font-bold text-slate-300">{user?.displayName}</span>
+          <div className="flex items-center gap-4">
+            {/* Credit Pill */}
+            <button
+              onClick={() => { setPricingTab('topup'); setIsPricingOpen(true); }}
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 via-white/5 to-white/5 hover:from-amber-500/20 px-3.5 py-2 rounded-xl border border-amber-500/30 text-xs font-bold transition-all shadow-sm group"
+              title="Click to refill credits or upgrade"
+            >
+              <Coins className="size-4 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="text-white font-mono">{creditProfile ? creditProfile.totalCredits.toLocaleString() : '30'}</span>
+              <span className="text-[10px] text-slate-400 font-sans uppercase">Credits</span>
+              <span className="size-4 rounded bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-black leading-none ml-1 group-hover:bg-amber-400 group-hover:text-obsidian transition-colors">
+                +
+              </span>
+            </button>
+
+            {/* Upgrade Button */}
+            {(!creditProfile || creditProfile.tier === 'free') && (
+              <button
+                onClick={() => { setPricingTab('plans'); setIsPricingOpen(true); }}
+                className="flex items-center gap-1.5 bg-primary text-obsidian font-black px-3.5 py-2 rounded-xl text-xs uppercase hover:brightness-110 transition-all shadow-md shadow-primary/10"
+              >
+                <Sparkles className="size-3.5" />
+                <span>Upgrade</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+              <img src={user?.photoURL || 'https://picsum.photos/id/64/100/100'} alt="" className="size-6 rounded-full border border-primary/30" />
+              <span className="text-xs font-bold text-slate-300">{user?.displayName || 'Creator'}</span>
             </div>
             <button 
               onClick={logout}
@@ -140,6 +190,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
+      {/* Pricing Modal */}
+      <PricingModal
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
+        currentTier={creditProfile?.tier || 'free'}
+        initialTab={pricingTab}
+        onSuccess={fetchCredits}
+      />
 
       <main className="max-w-7xl mx-auto px-8 py-12">
         {/* Actions Bar */}
