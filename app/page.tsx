@@ -1,13 +1,33 @@
-import * as React from "react";
+'use client';
+
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { 
   Film, Play, Pause, Volume2, Maximize, FileText, Sparkles, Mic, 
   RotateCcw, MonitorPlay, MessageSquare, Fingerprint, Component, 
-  Eye, Sun, Video, Sliders, Wand2, Check 
+  Eye, Sun, Video, Sliders, Wand2, Check, ArrowRight, Zap, Flame, ShieldCheck 
 } from "lucide-react";
+import { SUBSCRIPTION_PLANS, formatPrice, Currency, BillingCycle } from "@/lib/plans";
+import { detectClientCurrency } from "@/lib/geo";
 
 export default function Page() {
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
+
+  useEffect(() => {
+    fetch('/api/billing/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.geo?.currency) {
+          setCurrency(data.geo.currency);
+        }
+      })
+      .catch(() => {
+        setCurrency(detectClientCurrency());
+      });
+  }, []);
+
   return (
     <div className="relative">
       <div className="film-grain"></div>
@@ -15,46 +35,52 @@ export default function Page() {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-40 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between glass-panel rounded-full px-8 py-3 border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="size-8 bg-primary rounded flex items-center justify-center text-obsidian">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="size-8 bg-primary rounded flex items-center justify-center text-obsidian shadow-md shadow-primary/20">
               <Film className="size-5" />
             </div>
             <span className="text-xl font-bold tracking-tighter uppercase">
-              Vivid.live
+              Vivid<span className="text-primary">.live</span>
             </span>
-          </div>
-          <div className="hidden md:flex items-center gap-10">
+          </Link>
+          <div className="hidden md:flex items-center gap-8">
             <a
               className="text-sm font-medium hover:text-primary transition-colors"
-              href="#"
+              href="#canvas"
             >
               Canvas
             </a>
             <a
               className="text-sm font-medium hover:text-primary transition-colors"
-              href="#"
+              href="#world-bible"
             >
               World Bible
             </a>
             <a
               className="text-sm font-medium hover:text-primary transition-colors"
-              href="#"
+              href="#director"
             >
               Director
             </a>
             <a
               className="text-sm font-medium hover:text-primary transition-colors"
-              href="#"
+              href="#soundscape"
             >
               Soundscape
             </a>
+            <Link
+              className="text-sm font-bold text-primary hover:brightness-125 transition-colors"
+              href="/pricing"
+            >
+              Pricing
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <Link
               href="/login"
-              className="bg-primary text-obsidian px-6 py-2 rounded-lg text-sm font-bold hover:brightness-110 transition-all uppercase tracking-wider"
+              className="bg-primary text-obsidian px-6 py-2 rounded-lg text-sm font-bold hover:brightness-110 transition-all uppercase tracking-wider shadow-md shadow-primary/10"
             >
-              Request Access
+              Start Directing
             </Link>
           </div>
         </div>
@@ -579,6 +605,160 @@ export default function Page() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="py-32 px-6 relative bg-obsidian z-10 border-t border-white/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
+              <Sparkles className="size-3.5" />
+              Transparent Pricing · Zero Server Render Fees
+            </div>
+            <h2 className="text-4xl md:text-6xl font-black tracking-tight text-white mb-6">
+              Production Plans for <span className="text-primary italic">Every Creator</span>
+            </h2>
+            <p className="text-base text-slate-400 font-light max-w-2xl mx-auto mb-10">
+              Direct manga animatics, YouTube recaps, or cinematic AI film sequences with non-expiring rollover top-ups.
+            </p>
+
+            {/* Currency & Cycle Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {/* Currency Selector */}
+              <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                <button
+                  onClick={() => setCurrency('USD')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${currency === 'USD' ? 'bg-primary text-obsidian shadow' : 'text-slate-400 hover:text-white'}`}
+                >
+                  USD ($)
+                </button>
+                <button
+                  onClick={() => setCurrency('NGN')}
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${currency === 'NGN' ? 'bg-primary text-obsidian shadow' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <span>NGN (₦)</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 py-0.2 rounded font-mono">Paystack</span>
+                </button>
+              </div>
+
+              {/* Cycle Toggle */}
+              <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                <button
+                  onClick={() => setCycle('monthly')}
+                  className={`px-4 py-1.5 rounded-lg transition-all ${cycle === 'monthly' ? 'bg-primary text-obsidian shadow' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setCycle('annual')}
+                  className={`px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${cycle === 'annual' ? 'bg-primary text-obsidian shadow' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <span>Annual</span>
+                  <span className="bg-emerald-500/30 text-emerald-300 text-[10px] px-1.5 py-0.2 rounded font-black uppercase">
+                    Save 20%
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mb-12">
+            {[SUBSCRIPTION_PLANS.starter, SUBSCRIPTION_PLANS.pro, SUBSCRIPTION_PLANS.studio].map((plan) => {
+              const priceObj = currency === 'NGN' ? plan.price.NGN : plan.price.USD;
+              const displayPrice = cycle === 'annual' ? priceObj.annualMonthly : priceObj.monthly;
+              const isPopular = plan.popular;
+
+              return (
+                <div 
+                  key={plan.id}
+                  className={`relative rounded-3xl p-8 flex flex-col justify-between transition-all border ${
+                    isPopular 
+                      ? 'bg-gradient-to-b from-primary/15 via-white/[0.02] to-transparent border-primary/50 shadow-2xl shadow-primary/10 md:-translate-y-2' 
+                      : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  {isPopular && (
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-4 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1">
+                      <Flame className="size-3 fill-current" />
+                      Most Popular · Manga & Animatic
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-base font-bold text-white uppercase tracking-wider">{plan.name}</h3>
+                      {plan.badge && !isPopular && (
+                        <span className="text-[10px] font-mono text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                          {plan.badge}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-slate-400 min-h-[32px] mb-4">{plan.tagline}</p>
+
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl md:text-4xl font-extrabold text-white">
+                        {formatPrice(displayPrice, currency)}
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">/ month</span>
+                    </div>
+
+                    {cycle === 'annual' && priceObj.annualTotal > 0 && (
+                      <p className="text-[10px] text-emerald-400 font-medium mb-4">
+                        Billed annually ({formatPrice(priceObj.annualTotal, currency)}/yr)
+                      </p>
+                    )}
+
+                    <div className="my-4 py-3 px-3.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="size-4 text-primary" />
+                        <span className="text-xs font-bold text-white">Monthly Credits</span>
+                      </div>
+                      <span className="text-sm font-extrabold text-primary font-mono">
+                        {plan.monthlyCredits.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <ul className="space-y-2.5 my-6">
+                      {plan.features.slice(0, 6).map((feature, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs">
+                          <Check className={`size-3.5 mt-0.5 flex-shrink-0 ${feature.highlight ? 'text-primary' : 'text-emerald-400'}`} />
+                          <span className={feature.highlight ? 'text-white font-semibold' : 'text-slate-300'}>
+                            {feature.text}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <Link
+                    href="/pricing"
+                    className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                      isPopular
+                        ? 'bg-primary text-obsidian hover:brightness-110 shadow-lg shadow-primary/20'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <span>Choose {plan.name}</span>
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Link to Full Pricing & Comparison */}
+          <div className="text-center">
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 text-primary hover:text-white text-xs font-bold uppercase tracking-widest transition-colors py-2 px-4 rounded-xl hover:bg-white/5 border border-primary/20"
+            >
+              <span>View Full Feature Comparison & Top-Up Credit Packs</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Call to Action */}
       <section className="py-40 px-6 relative overflow-hidden bg-obsidian z-10">
         <div className="absolute inset-0 bg-primary/5"></div>
@@ -614,33 +794,37 @@ export default function Page() {
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-white/5 bg-obsidian relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-3 grayscale">
-            <div className="size-6 bg-white/20 rounded flex items-center justify-center text-white">
+          <div className="flex items-center gap-3">
+            <div className="size-6 bg-primary rounded flex items-center justify-center text-obsidian">
               <Film className="size-3" />
             </div>
-            <span className="text-sm font-bold tracking-tighter uppercase opacity-50">
-              Vivid.live
+            <span className="text-sm font-bold tracking-tighter uppercase text-white">
+              Vivid<span className="text-primary">.live</span>
             </span>
           </div>
-          <div className="flex flex-wrap justify-center gap-8 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <div className="flex flex-wrap justify-center gap-8 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            <Link className="hover:text-primary transition-colors" href="/pricing">
+              Pricing
+            </Link>
+            <Link className="hover:text-primary transition-colors" href="/dashboard">
+              Dashboard
+            </Link>
+            <Link className="hover:text-primary transition-colors" href="/login">
+              Sign In
+            </Link>
             <a className="hover:text-primary transition-colors" href="#">
               Twitter / X
             </a>
             <a className="hover:text-primary transition-colors" href="#">
               Discord
             </a>
-            <a className="hover:text-primary transition-colors" href="#">
-              Privacy
-            </a>
-            <a className="hover:text-primary transition-colors" href="#">
-              Terms
-            </a>
           </div>
           <p className="text-[10px] text-slate-600 font-mono text-center">
-            © 2024 LORECAST EVOLUTION. ALL RIGHTS RESERVED.
+            © {new Date().getFullYear()} VIVID.LIVE MULTIMODAL STUDIO. ALL RIGHTS RESERVED.
           </p>
         </div>
       </footer>
     </div>
   );
 }
+
