@@ -6,7 +6,7 @@ import Link from "next/link";
 import { 
   Film, Play, Pause, Volume2, Maximize, FileText, Sparkles, Mic, 
   RotateCcw, MonitorPlay, MessageSquare, Fingerprint, Component, 
-  Eye, Sun, Video, Sliders, Wand2, Check, ArrowRight, Zap, Flame, ShieldCheck 
+  Eye, Sun, Video, Sliders, Wand2, Check, ArrowRight, Zap, Flame, ShieldCheck, X 
 } from "lucide-react";
 import { SUBSCRIPTION_PLANS, formatPrice, Currency, BillingCycle } from "@/lib/plans";
 import { detectClientCurrency } from "@/lib/geo";
@@ -660,33 +660,38 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mb-12">
-            {[SUBSCRIPTION_PLANS.starter, SUBSCRIPTION_PLANS.pro, SUBSCRIPTION_PLANS.studio].map((plan) => {
+          {/* Cards Grid: 4-Column Responsive Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch mb-12">
+            {[SUBSCRIPTION_PLANS.free, SUBSCRIPTION_PLANS.starter, SUBSCRIPTION_PLANS.pro, SUBSCRIPTION_PLANS.studio].map((plan) => {
+              const isFree = plan.id === 'free';
               const priceObj = currency === 'NGN' ? plan.price.NGN : plan.price.USD;
-              const displayPrice = cycle === 'annual' ? priceObj.annualMonthly : priceObj.monthly;
+              const displayPrice = isFree ? 0 : (cycle === 'annual' ? priceObj.annualMonthly : priceObj.monthly);
               const isPopular = plan.popular;
 
               return (
                 <div 
                   key={plan.id}
-                  className={`relative rounded-3xl p-8 flex flex-col justify-between transition-all border ${
+                  className={`relative rounded-3xl p-6 flex flex-col justify-between transition-all border ${
                     isPopular 
-                      ? 'bg-gradient-to-b from-primary/15 via-white/[0.02] to-transparent border-primary/50 shadow-2xl shadow-primary/10 md:-translate-y-2' 
+                      ? 'bg-gradient-to-b from-primary/15 via-white/[0.02] to-transparent border-primary/50 shadow-2xl shadow-primary/10 lg:-translate-y-2' 
                       : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                   }`}
                 >
                   {isPopular && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-4 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1">
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-3.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1 whitespace-nowrap">
                       <Flame className="size-3 fill-current" />
-                      Most Popular · Manga & Animatic
+                      Most Popular · Full Motion
                     </div>
                   )}
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-base font-bold text-white uppercase tracking-wider">{plan.name}</h3>
-                      {plan.badge && !isPopular && (
+                      {isFree ? (
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          Free Forever
+                        </span>
+                      ) : plan.badge && (
                         <span className="text-[10px] font-mono text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                           {plan.badge}
                         </span>
@@ -696,33 +701,41 @@ export default function Page() {
                     <p className="text-xs text-slate-400 min-h-[32px] mb-4">{plan.tagline}</p>
 
                     <div className="flex items-baseline gap-1 mb-1">
-                      <span className="text-3xl md:text-4xl font-extrabold text-white">
-                        {formatPrice(displayPrice, currency)}
+                      <span className="text-3xl font-extrabold text-white">
+                        {isFree ? (currency === 'NGN' ? '₦0' : '$0') : formatPrice(displayPrice, currency)}
                       </span>
-                      <span className="text-xs text-slate-400 font-medium">/ month</span>
+                      <span className="text-xs text-slate-400 font-medium">{isFree ? '/ free forever' : '/ month'}</span>
                     </div>
 
-                    {cycle === 'annual' && priceObj.annualTotal > 0 && (
+                    {!isFree && cycle === 'annual' && priceObj.annualTotal > 0 ? (
                       <p className="text-[10px] text-emerald-400 font-medium mb-4">
                         Billed annually ({formatPrice(priceObj.annualTotal, currency)}/yr)
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 font-medium mb-4">
+                        {isFree ? 'No credit card required' : 'Flexible monthly billing'}
                       </p>
                     )}
 
                     <div className="my-4 py-3 px-3.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Zap className="size-4 text-primary" />
-                        <span className="text-xs font-bold text-white">Monthly Credits</span>
+                        <Zap className={`size-4 ${isFree ? 'text-emerald-400' : 'text-primary'}`} />
+                        <span className="text-xs font-bold text-white">{isFree ? 'Starter Gift' : 'Monthly Credits'}</span>
                       </div>
-                      <span className="text-sm font-extrabold text-primary font-mono">
-                        {plan.monthlyCredits.toLocaleString()}
+                      <span className={`text-sm font-extrabold font-mono ${isFree ? 'text-emerald-400' : 'text-primary'}`}>
+                        {isFree ? '30 Credits' : plan.monthlyCredits.toLocaleString()}
                       </span>
                     </div>
 
                     <ul className="space-y-2.5 my-6">
                       {plan.features.slice(0, 6).map((feature, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs">
-                          <Check className={`size-3.5 mt-0.5 flex-shrink-0 ${feature.highlight ? 'text-primary' : 'text-emerald-400'}`} />
-                          <span className={feature.highlight ? 'text-white font-semibold' : 'text-slate-300'}>
+                          {feature.included ? (
+                            <Check className={`size-3.5 mt-0.5 flex-shrink-0 ${feature.highlight ? 'text-primary' : 'text-emerald-400'}`} />
+                          ) : (
+                            <X className="size-3.5 mt-0.5 flex-shrink-0 text-slate-600" />
+                          )}
+                          <span className={feature.included ? (feature.highlight ? 'text-white font-semibold' : 'text-slate-300') : 'text-slate-500 line-through'}>
                             {feature.text}
                           </span>
                         </li>
@@ -731,14 +744,16 @@ export default function Page() {
                   </div>
 
                   <Link
-                    href="/pricing"
+                    href={isFree ? "/signup" : "/pricing"}
                     className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                       isPopular
                         ? 'bg-primary text-obsidian hover:brightness-110 shadow-lg shadow-primary/20'
+                        : isFree
+                        ? 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'
                         : 'bg-white/10 text-white hover:bg-white/20'
                     }`}
                   >
-                    <span>Choose {plan.name}</span>
+                    <span>{isFree ? 'Get Started Free' : `Choose ${plan.name}`}</span>
                     <ArrowRight className="size-3.5" />
                   </Link>
                 </div>

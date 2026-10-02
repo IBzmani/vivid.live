@@ -158,6 +158,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanTier, PlanDefinition> = {
     extraSeatPrice: { USD: 0, NGN: 0 },
     features: [
       { text: '500 Monthly Film Production Credits', included: true, highlight: true },
+      { text: 'Clean Watermark-Free Master Exports', included: true, highlight: true },
       { text: 'Unlimited Script Breakdowns & Directing', included: true },
       { text: '10 Active Production Projects', included: true },
       { text: '8 Character DNA Turnarounds per Project', included: true },
@@ -174,7 +175,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanTier, PlanDefinition> = {
     name: 'Director Pro',
     tagline: 'For Filmmakers, Commercial Directors & Motion Studios',
     badge: 'Full Motion AI',
-    popular: false,
+    popular: true,
     price: {
       USD: { monthly: 29.00, annualMonthly: 24.00, annualTotal: 288.00 },
       NGN: { monthly: 45000, annualMonthly: 36000, annualTotal: 432000 }
@@ -190,6 +191,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanTier, PlanDefinition> = {
     extraSeatPrice: { USD: 19, NGN: 29000 },
     features: [
       { text: '1,800 Monthly Film Production Credits', included: true, highlight: true },
+      { text: 'Clean Watermark-Free Master Exports', included: true, highlight: true },
       { text: 'Full Image-to-Video AI Motion (Wan 2.1)', included: true, highlight: true },
       { text: 'Up to ~40 Motion Shots / month included', included: true },
       { text: 'Unlimited Projects & Character DNA Bibles', included: true },
@@ -221,6 +223,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanTier, PlanDefinition> = {
     extraSeatPrice: { USD: 29, NGN: 44000 },
     features: [
       { text: '6,500 Monthly Film Production Credits', included: true, highlight: true },
+      { text: 'Clean Watermark-Free Master Exports', included: true, highlight: true },
       { text: '3 Team Seats Included ($29/extra seat)', included: true, highlight: true },
       { text: 'Up to ~150 Motion Shots / month included', included: true },
       { text: 'Shared World Bible & Asset Repository', included: true },

@@ -66,6 +66,7 @@ export default function PricingPage() {
   };
 
   const corePlans = [
+    SUBSCRIPTION_PLANS.free,
     SUBSCRIPTION_PLANS.starter,
     SUBSCRIPTION_PLANS.pro,
     SUBSCRIPTION_PLANS.studio,
@@ -238,8 +239,9 @@ export default function PricingPage() {
 
       {/* Pricing Cards Grid */}
       <section className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
           {corePlans.map((plan) => {
+            const isFree = plan.id === 'free';
             const priceObj = currency === 'NGN' ? plan.price.NGN : plan.price.USD;
             const displayMonthlyPrice = cycle === 'annual' ? priceObj.annualMonthly : priceObj.monthly;
             const isPopular = plan.popular;
@@ -247,16 +249,16 @@ export default function PricingPage() {
             return (
               <div 
                 key={plan.id}
-                className={`relative rounded-3xl p-8 flex flex-col justify-between transition-all duration-300 border ${
+                className={`relative rounded-3xl p-6 md:p-7 flex flex-col justify-between transition-all duration-300 border ${
                   isPopular 
-                    ? 'bg-gradient-to-b from-primary/15 via-white/[0.03] to-transparent border-primary/50 shadow-2xl shadow-primary/10 ring-1 ring-primary/40 md:-translate-y-2' 
+                    ? 'bg-gradient-to-b from-primary/15 via-white/[0.03] to-transparent border-primary/50 shadow-2xl shadow-primary/10 ring-1 ring-primary/40 lg:-translate-y-2' 
                     : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                 }`}
               >
                 {isPopular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-4 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5 whitespace-nowrap">
                     <Flame className="size-3.5 fill-current" />
-                    Most Popular · Manga & Animatic
+                    Most Popular · Manga & Film
                   </div>
                 )}
 
@@ -272,19 +274,35 @@ export default function PricingPage() {
 
                   <p className="text-xs text-slate-400 min-h-[36px] mb-6 leading-relaxed">{plan.tagline}</p>
 
-                  <div className="flex items-baseline gap-1.5 mb-1">
-                    <span className="text-4xl md:text-5xl font-black text-white tracking-tight">
-                      {formatPrice(displayMonthlyPrice, currency)}
-                    </span>
-                    <span className="text-sm text-slate-400 font-medium">/ month</span>
-                  </div>
-
-                  {cycle === 'annual' && priceObj.annualTotal > 0 ? (
-                    <p className="text-xs text-emerald-400 font-medium mb-6">
-                      Billed annually ({formatPrice(priceObj.annualTotal, currency)}/yr)
-                    </p>
+                  {isFree ? (
+                    <>
+                      <div className="flex items-baseline gap-1.5 mb-1">
+                        <span className="text-4xl md:text-5xl font-black text-white tracking-tight">
+                          $0
+                        </span>
+                        <span className="text-sm text-slate-400 font-medium">/ free forever</span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-medium mb-6">
+                        No credit card required
+                      </p>
+                    </>
                   ) : (
-                    <div className="h-6 mb-2"></div>
+                    <>
+                      <div className="flex items-baseline gap-1.5 mb-1">
+                        <span className="text-4xl md:text-5xl font-black text-white tracking-tight">
+                          {formatPrice(displayMonthlyPrice, currency)}
+                        </span>
+                        <span className="text-sm text-slate-400 font-medium">/ month</span>
+                      </div>
+
+                      {cycle === 'annual' && priceObj.annualTotal > 0 ? (
+                        <p className="text-xs text-emerald-400 font-medium mb-6">
+                          Billed annually ({formatPrice(priceObj.annualTotal, currency)}/yr)
+                        </p>
+                      ) : (
+                        <div className="h-6 mb-2"></div>
+                      )}
+                    </>
                   )}
 
                   <div className="my-6 p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between">
@@ -293,8 +311,12 @@ export default function PricingPage() {
                         <Zap className="size-4" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-white block">Monthly Film Credits</span>
-                        <span className="text-[10px] text-slate-400 font-mono">Renews every 30 days</span>
+                        <span className="text-xs font-bold text-white block">
+                          {isFree ? 'Welcome Film Credits' : 'Monthly Film Credits'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {isFree ? 'One-time test allowance' : 'Renews every 30 days'}
+                        </span>
                       </div>
                     </div>
                     <span className="text-base font-black text-primary font-mono">
@@ -318,66 +340,52 @@ export default function PricingPage() {
                   </ul>
                 </div>
 
-                <button
-                  onClick={() => handlePlanSelect(plan.id)}
-                  className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                    isPopular
-                      ? 'bg-primary text-obsidian hover:brightness-110 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  }`}
-                >
-                  <span>Start with {plan.name}</span>
-                  <ArrowRight className="size-4" />
-                </button>
+                {isFree ? (
+                  <Link
+                    href={user ? "/dashboard" : "/signup"}
+                    className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-white/10 text-white hover:bg-white/20"
+                  >
+                    <span>{user ? "Go to Dashboard" : "Get Started Free"}</span>
+                    <ArrowRight className="size-4" />
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => handlePlanSelect(plan.id)}
+                    className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                      isPopular
+                        ? 'bg-primary text-obsidian hover:brightness-110 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <span>Start with {plan.name}</span>
+                    <ArrowRight className="size-4" />
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Free Tier & Project Vault Banner */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          {/* Free Explorer Card */}
-          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Free Explorer</h4>
-                <span className="text-xs font-black text-slate-400 font-mono">$0 / Free Forever</span>
-              </div>
-              <p className="text-xs text-slate-400 mb-4">
-                30 welcome credits to test storyboarding, character turnarounds, and unlimited 720p watermarked animatics.
-              </p>
+        {/* Project Vault / Pause Plan Banner */}
+        <div className="mt-8 p-6 md:p-8 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-lg">
+          <div className="max-w-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Lock className="size-4 text-amber-400" />
+              <h4 className="text-sm font-black text-white uppercase tracking-wider">Project Vault / Pause Plan</h4>
+              <span className="text-xs font-black text-amber-400 font-mono bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                {formatPrice(currency === 'NGN' ? 7500 : 4.99, currency)} / mo
+              </span>
             </div>
-            <Link
-              href={user ? "/dashboard" : "/signup"}
-              className="py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-slate-300 hover:text-white border border-white/10 text-center transition-all block"
-            >
-              Try Free Explorer
-            </Link>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Taking a break between manga chapters or production cycles? Protect your character turnarounds, world bibles, and rollover credits without losing project consistency.
+            </p>
           </div>
-
-          {/* Project Vault / Pause Card */}
-          <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Lock className="size-4 text-amber-400" />
-                  <h4 className="text-sm font-bold text-white uppercase tracking-wider">Project Vault / Pause Plan</h4>
-                </div>
-                <span className="text-xs font-black text-amber-400 font-mono">
-                  {formatPrice(currency === 'NGN' ? 7500 : 4.99, currency)} / mo
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 mb-4">
-                Taking a break between manga chapters? Protect your character turnarounds, world bibles, and rollover credits without losing project consistency.
-              </p>
-            </div>
-            <button
-              onClick={() => handlePlanSelect('vault')}
-              className="py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-obsidian text-xs font-bold uppercase tracking-wider transition-all text-center"
-            >
-              Learn about Project Vault
-            </button>
-          </div>
+          <button
+            onClick={() => handlePlanSelect('vault')}
+            className="py-3 px-6 rounded-xl bg-amber-400 hover:bg-amber-300 text-obsidian text-xs font-black uppercase tracking-wider transition-all text-center whitespace-nowrap shadow-md hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Learn about Project Vault
+          </button>
         </div>
       </section>
 

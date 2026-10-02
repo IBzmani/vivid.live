@@ -109,6 +109,7 @@ export default function PricingModal({
   };
 
   const plansList = [
+    SUBSCRIPTION_PLANS.free,
     SUBSCRIPTION_PLANS.starter,
     SUBSCRIPTION_PLANS.pro,
     SUBSCRIPTION_PLANS.studio
@@ -121,7 +122,7 @@ export default function PricingModal({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-5xl bg-obsidian border border-white/10 rounded-2xl shadow-2xl overflow-hidden my-8"
+          className="relative w-full max-w-6xl bg-obsidian border border-white/10 rounded-2xl shadow-2xl overflow-hidden my-8"
         >
           {/* Header Bar */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
@@ -222,8 +223,9 @@ export default function PricingModal({
           {/* Content Area */}
           <div className="p-8">
             {activeTab === 'plans' ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
                 {plansList.map((plan) => {
+                  const isFree = plan.id === 'free';
                   const isCurrent = currentTier === plan.id;
                   const priceObj = currency === 'NGN' ? plan.price.NGN : plan.price.USD;
                   const displayMonthlyPrice = cycle === 'annual' ? priceObj.annualMonthly : priceObj.monthly;
@@ -232,15 +234,15 @@ export default function PricingModal({
                   return (
                     <div 
                       key={plan.id}
-                      className={`relative rounded-2xl p-6 flex flex-col justify-between transition-all border ${
+                      className={`relative rounded-2xl p-5 md:p-6 flex flex-col justify-between transition-all border ${
                         isPopular 
                           ? 'bg-gradient-to-b from-primary/10 via-white/[0.02] to-transparent border-primary/40 shadow-2xl shadow-primary/10' 
                           : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                       }`}
                     >
                       {isPopular && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow">
-                          Most Popular · Manga & Animatic
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-obsidian px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow whitespace-nowrap">
+                          Most Popular · Manga & Film
                         </div>
                       )}
 
@@ -256,23 +258,41 @@ export default function PricingModal({
 
                         <p className="text-xs text-slate-400 min-h-[32px] mb-4">{plan.tagline}</p>
 
-                        <div className="flex items-baseline gap-1 mb-1">
-                          <span className="text-3xl font-extrabold text-white">
-                            {formatPrice(displayMonthlyPrice, currency)}
-                          </span>
-                          <span className="text-xs text-slate-400 font-medium">/ month</span>
-                        </div>
+                        {isFree ? (
+                          <>
+                            <div className="flex items-baseline gap-1 mb-1">
+                              <span className="text-3xl font-extrabold text-white">$0</span>
+                              <span className="text-xs text-slate-400 font-medium">/ free forever</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-medium mb-4">
+                              No credit card required
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-baseline gap-1 mb-1">
+                              <span className="text-3xl font-extrabold text-white">
+                                {formatPrice(displayMonthlyPrice, currency)}
+                              </span>
+                              <span className="text-xs text-slate-400 font-medium">/ month</span>
+                            </div>
 
-                        {cycle === 'annual' && priceObj.annualTotal > 0 && (
-                          <p className="text-[10px] text-emerald-400 font-medium mb-4">
-                            Billed annually ({formatPrice(priceObj.annualTotal, currency)}/yr)
-                          </p>
+                            {cycle === 'annual' && priceObj.annualTotal > 0 ? (
+                              <p className="text-[10px] text-emerald-400 font-medium mb-4">
+                                Billed annually ({formatPrice(priceObj.annualTotal, currency)}/yr)
+                              </p>
+                            ) : (
+                              <div className="h-4 mb-2"></div>
+                            )}
+                          </>
                         )}
 
                         <div className="my-4 py-3 px-3.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Zap className="size-4 text-primary" />
-                            <span className="text-xs font-bold text-white">Monthly Credits</span>
+                            <span className="text-xs font-bold text-white">
+                              {isFree ? 'Welcome Credits' : 'Monthly Credits'}
+                            </span>
                           </div>
                           <span className="text-sm font-extrabold text-primary font-mono">
                             {plan.monthlyCredits.toLocaleString()}
@@ -296,11 +316,13 @@ export default function PricingModal({
                       </div>
 
                       <button
-                        onClick={() => handleCheckout(plan.id)}
-                        disabled={loadingPlan !== null || isCurrent}
+                        onClick={() => !isFree && handleCheckout(plan.id)}
+                        disabled={loadingPlan !== null || isCurrent || isFree}
                         className={`w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                           isCurrent
                             ? 'bg-white/10 text-slate-400 cursor-default'
+                            : isFree
+                            ? 'bg-white/5 text-slate-500 cursor-default border border-white/5'
                             : isPopular
                             ? 'bg-primary text-obsidian hover:brightness-110 shadow-lg shadow-primary/20'
                             : 'bg-white/10 text-white hover:bg-white/20'
@@ -310,6 +332,8 @@ export default function PricingModal({
                           <Loader2 className="size-4 animate-spin" />
                         ) : isCurrent ? (
                           'Current Active Plan'
+                        ) : isFree ? (
+                          'Included Free'
                         ) : (
                           <>
                             <span>Upgrade to {plan.name}</span>
